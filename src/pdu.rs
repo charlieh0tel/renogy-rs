@@ -1,5 +1,5 @@
 use crate::error::{RenogyError, Result};
-use crc::{Crc, CRC_16_MODBUS};
+use crc::{CRC_16_MODBUS, Crc};
 
 pub const MODBUS_CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_MODBUS);
 

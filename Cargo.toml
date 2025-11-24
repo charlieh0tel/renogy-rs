@@ -7,4 +7,7 @@ edition = "2024"
 crc = "3.3.0"
 byteorder = "1.4.3"
 uom = { version = "0.35.0", features = ["si", "f32", "std"] }
+bitflags = "2.4.1"
+tokio = { version = "1", features = ["full"] }
+tokio-modbus = "0.8.1"
 
