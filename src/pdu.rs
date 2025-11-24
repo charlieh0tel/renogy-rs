@@ -1,4 +1,4 @@
-use crate::error::{RenogyError, Result};
+use crate::error::{ModbusExceptionCode, RenogyError, Result};
 use crc::{CRC_16_MODBUS, Crc};
 
 pub const MODBUS_CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_MODBUS);
@@ -62,6 +62,27 @@ impl Pdu {
         frame
     }
 
+    pub fn is_error_response(&self) -> bool {
+        matches!(
+            self.function_code,
+            FunctionCode::ReadHoldingRegistersError
+                | FunctionCode::WriteSingleRegisterError
+                | FunctionCode::WriteMultipleRegistersError
+                | FunctionCode::RestoreFactoryDefaultError
+                | FunctionCode::ClearHistoryError
+        )
+    }
+
+    pub fn is_write_operation(&self) -> bool {
+        matches!(
+            self.function_code,
+            FunctionCode::WriteSingleRegister
+                | FunctionCode::WriteMultipleRegisters
+                | FunctionCode::RestoreFactoryDefault
+                | FunctionCode::ClearHistory
+        )
+    }
+
     pub fn deserialize(frame: &[u8]) -> Result<Self> {
         if frame.len() < 4 {
             return Err(RenogyError::InvalidData);
@@ -76,7 +97,21 @@ impl Pdu {
         }
 
         let address = data[0];
-        let function_code = FunctionCode::from_u8(data[1]).ok_or(RenogyError::InvalidData)?;
+        let function_code_byte = data[1];
+        let function_code =
+            FunctionCode::from_u8(function_code_byte).ok_or(RenogyError::InvalidData)?;
+
+        // Check if this is an error response (high bit set)
+        if function_code_byte & 0x80 != 0 {
+            if data.len() >= 3 {
+                let exception_code = data[2];
+                if let Some(modbus_exception) = ModbusExceptionCode::from_u8(exception_code) {
+                    return Err(RenogyError::ModbusException(modbus_exception));
+                }
+            }
+            return Err(RenogyError::InvalidData);
+        }
+
         let payload = data[2..].to_vec();
 
         Ok(Pdu {

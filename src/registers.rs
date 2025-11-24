@@ -2,6 +2,7 @@ use crate::alarm::{
     CellTemperatureAlarms, CellVoltageAlarms, CellVoltageErrors, ChargeDischargeStatus,
     OtherAlarmInfo, Status1, Status2, Status3,
 };
+use crate::error::{RenogyError, Result};
 use byteorder::{BigEndian, ByteOrder};
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
@@ -57,6 +58,40 @@ pub enum Register {
     BatteryName,
     SoftwareVersion,
     ManufacturerName,
+    // Configuration registers (5200-5229)
+    CellOverVoltageLimit,
+    CellHighVoltageLimit,
+    CellLowVoltageLimit,
+    CellUnderVoltageLimit,
+    ChargeOverTemperatureLimit,
+    ChargeHighTemperatureLimit,
+    ChargeLowTemperatureLimit,
+    ChargeUnderTemperatureLimit,
+    ChargeOver2CurrentLimit,
+    ChargeOver1CurrentLimit,
+    ChargeHighCurrentLimit,
+    ModuleOverVoltageLimit,
+    ModuleHighVoltageLimit,
+    ModuleLowVoltageLimit,
+    ModuleUnderVoltageLimit,
+    DischargeOverTemperatureLimit,
+    DischargeHighTemperatureLimit,
+    DischargeLowTemperatureLimit,
+    DischargeUnderTemperatureLimit,
+    DischargeOver2CurrentLimit,
+    DischargeOver1CurrentLimit,
+    DischargeHighCurrentLimit,
+    ShutdownCommand,
+    DeviceId,
+    LockControl,
+    TestReady,
+    UniqueIdentificationCode,
+    ChargePowerSetting,
+    DischargePowerSetting,
+    // ACP Protocol registers (61440-61442)
+    AcpBroadcast,
+    AcpConfigure,
+    AcpShake,
 }
 
 impl Register {
@@ -92,6 +127,40 @@ impl Register {
             Register::BatteryName => 5122,
             Register::SoftwareVersion => 5130,
             Register::ManufacturerName => 5132,
+            // Configuration registers
+            Register::CellOverVoltageLimit => 5200,
+            Register::CellHighVoltageLimit => 5201,
+            Register::CellLowVoltageLimit => 5202,
+            Register::CellUnderVoltageLimit => 5203,
+            Register::ChargeOverTemperatureLimit => 5204,
+            Register::ChargeHighTemperatureLimit => 5205,
+            Register::ChargeLowTemperatureLimit => 5206,
+            Register::ChargeUnderTemperatureLimit => 5207,
+            Register::ChargeOver2CurrentLimit => 5208,
+            Register::ChargeOver1CurrentLimit => 5209,
+            Register::ChargeHighCurrentLimit => 5210,
+            Register::ModuleOverVoltageLimit => 5211,
+            Register::ModuleHighVoltageLimit => 5212,
+            Register::ModuleLowVoltageLimit => 5213,
+            Register::ModuleUnderVoltageLimit => 5214,
+            Register::DischargeOverTemperatureLimit => 5215,
+            Register::DischargeHighTemperatureLimit => 5216,
+            Register::DischargeLowTemperatureLimit => 5217,
+            Register::DischargeUnderTemperatureLimit => 5218,
+            Register::DischargeOver2CurrentLimit => 5219,
+            Register::DischargeOver1CurrentLimit => 5220,
+            Register::DischargeHighCurrentLimit => 5221,
+            Register::ShutdownCommand => 5222,
+            Register::DeviceId => 5223,
+            Register::LockControl => 5224,
+            Register::TestReady => 5225,
+            Register::UniqueIdentificationCode => 5226,
+            Register::ChargePowerSetting => 5228,
+            Register::DischargePowerSetting => 5229,
+            // ACP Protocol registers
+            Register::AcpBroadcast => 61440,
+            Register::AcpConfigure => 61441,
+            Register::AcpShake => 61442,
         }
     }
 
@@ -107,6 +176,7 @@ impl Register {
             Register::BatteryName => 8,
             Register::SoftwareVersion => 2,
             Register::ManufacturerName => 10,
+            Register::UniqueIdentificationCode => 2,
             _ => 1,
         }
     }
@@ -195,6 +265,189 @@ impl Register {
             | Register::ManufacturerName => {
                 Value::String(String::from_utf8_lossy(data).to_string())
             }
+            // Configuration register parsing
+            Register::CellOverVoltageLimit
+            | Register::CellHighVoltageLimit
+            | Register::CellLowVoltageLimit
+            | Register::CellUnderVoltageLimit
+            | Register::ModuleOverVoltageLimit
+            | Register::ModuleHighVoltageLimit
+            | Register::ModuleLowVoltageLimit
+            | Register::ModuleUnderVoltageLimit => Value::ElectricPotential(
+                ElectricPotential::new::<volt>(BigEndian::read_u16(data) as f32 * 0.1),
+            ),
+            Register::ChargeOverTemperatureLimit
+            | Register::ChargeHighTemperatureLimit
+            | Register::ChargeLowTemperatureLimit
+            | Register::ChargeUnderTemperatureLimit
+            | Register::DischargeOverTemperatureLimit
+            | Register::DischargeHighTemperatureLimit
+            | Register::DischargeLowTemperatureLimit
+            | Register::DischargeUnderTemperatureLimit => {
+                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
+                    BigEndian::read_i16(data) as f32 * 0.1,
+                ))
+            }
+            Register::ChargeOver2CurrentLimit
+            | Register::ChargeOver1CurrentLimit
+            | Register::ChargeHighCurrentLimit
+            | Register::DischargeOver2CurrentLimit
+            | Register::DischargeOver1CurrentLimit
+            | Register::DischargeHighCurrentLimit => Value::ElectricCurrent(
+                ElectricCurrent::new::<ampere>(BigEndian::read_u16(data) as f32 * 0.01),
+            ),
+            Register::ShutdownCommand
+            | Register::DeviceId
+            | Register::LockControl
+            | Register::TestReady
+            | Register::ChargePowerSetting
+            | Register::DischargePowerSetting => Value::Integer(BigEndian::read_u16(data) as u32),
+            Register::UniqueIdentificationCode => Value::Integer(BigEndian::read_u32(data)),
+            // ACP Protocol registers
+            Register::AcpBroadcast | Register::AcpConfigure | Register::AcpShake => {
+                Value::Integer(BigEndian::read_u16(data) as u32)
+            }
         }
+    }
+
+    pub fn is_writable(&self) -> bool {
+        matches!(
+            self,
+            Register::ChargeVoltageLimit
+                | Register::DischargeVoltageLimit
+                | Register::ChargeCurrentLimit
+                | Register::DischargeCurrentLimit
+                // Configuration registers are writable
+                | Register::CellOverVoltageLimit
+                | Register::CellHighVoltageLimit
+                | Register::CellLowVoltageLimit
+                | Register::CellUnderVoltageLimit
+                | Register::ChargeOverTemperatureLimit
+                | Register::ChargeHighTemperatureLimit
+                | Register::ChargeLowTemperatureLimit
+                | Register::ChargeUnderTemperatureLimit
+                | Register::ChargeOver2CurrentLimit
+                | Register::ChargeOver1CurrentLimit
+                | Register::ChargeHighCurrentLimit
+                | Register::ModuleOverVoltageLimit
+                | Register::ModuleHighVoltageLimit
+                | Register::ModuleLowVoltageLimit
+                | Register::ModuleUnderVoltageLimit
+                | Register::DischargeOverTemperatureLimit
+                | Register::DischargeHighTemperatureLimit
+                | Register::DischargeLowTemperatureLimit
+                | Register::DischargeUnderTemperatureLimit
+                | Register::DischargeOver2CurrentLimit
+                | Register::DischargeOver1CurrentLimit
+                | Register::DischargeHighCurrentLimit
+                | Register::ShutdownCommand
+                | Register::DeviceId
+                | Register::LockControl
+                | Register::TestReady
+                | Register::UniqueIdentificationCode
+                | Register::ChargePowerSetting
+                | Register::DischargePowerSetting
+                | Register::AcpBroadcast
+                | Register::AcpConfigure
+                | Register::AcpShake
+        )
+    }
+
+    pub fn serialize_value(&self, value: &Value) -> Result<Vec<u8>> {
+        let mut data = vec![0u8; (self.quantity() * 2) as usize];
+
+        match (self, value) {
+            // Original writable registers
+            (
+                Register::ChargeVoltageLimit | Register::DischargeVoltageLimit,
+                Value::ElectricPotential(voltage),
+            ) => {
+                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
+                BigEndian::write_u16(&mut data, raw_value);
+            }
+            (
+                Register::ChargeCurrentLimit | Register::DischargeCurrentLimit,
+                Value::ElectricCurrent(current),
+            ) => {
+                let raw_value = (current.get::<ampere>() * 100.0) as u16;
+                BigEndian::write_u16(&mut data, raw_value);
+            }
+            (Register::CycleNumber, Value::Integer(value)) => {
+                BigEndian::write_u16(&mut data, *value as u16);
+            }
+            (
+                Register::RemainingCapacity | Register::TotalCapacity,
+                Value::ElectricCurrent(current),
+            ) => {
+                let raw_value = (current.get::<ampere>() * 1000.0) as u32;
+                BigEndian::write_u32(&mut data, raw_value);
+            }
+            // Configuration voltage limits
+            (
+                Register::CellOverVoltageLimit
+                | Register::CellHighVoltageLimit
+                | Register::CellLowVoltageLimit
+                | Register::CellUnderVoltageLimit
+                | Register::ModuleOverVoltageLimit
+                | Register::ModuleHighVoltageLimit
+                | Register::ModuleLowVoltageLimit
+                | Register::ModuleUnderVoltageLimit,
+                Value::ElectricPotential(voltage),
+            ) => {
+                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
+                BigEndian::write_u16(&mut data, raw_value);
+            }
+            // Configuration temperature limits
+            (
+                Register::ChargeOverTemperatureLimit
+                | Register::ChargeHighTemperatureLimit
+                | Register::ChargeLowTemperatureLimit
+                | Register::ChargeUnderTemperatureLimit
+                | Register::DischargeOverTemperatureLimit
+                | Register::DischargeHighTemperatureLimit
+                | Register::DischargeLowTemperatureLimit
+                | Register::DischargeUnderTemperatureLimit,
+                Value::ThermodynamicTemperature(temp),
+            ) => {
+                let raw_value = (temp.get::<degree_celsius>() * 10.0) as i16;
+                BigEndian::write_i16(&mut data, raw_value);
+            }
+            // Configuration current limits
+            (
+                Register::ChargeOver2CurrentLimit
+                | Register::ChargeOver1CurrentLimit
+                | Register::ChargeHighCurrentLimit
+                | Register::DischargeOver2CurrentLimit
+                | Register::DischargeOver1CurrentLimit
+                | Register::DischargeHighCurrentLimit,
+                Value::ElectricCurrent(current),
+            ) => {
+                let raw_value = (current.get::<ampere>() * 100.0) as u16;
+                BigEndian::write_u16(&mut data, raw_value);
+            }
+            // Control and configuration registers
+            (
+                Register::ShutdownCommand
+                | Register::DeviceId
+                | Register::LockControl
+                | Register::TestReady
+                | Register::ChargePowerSetting
+                | Register::DischargePowerSetting
+                | Register::AcpBroadcast
+                | Register::AcpConfigure
+                | Register::AcpShake,
+                Value::Integer(value),
+            ) => {
+                BigEndian::write_u16(&mut data, *value as u16);
+            }
+            (Register::UniqueIdentificationCode, Value::Integer(value)) => {
+                BigEndian::write_u32(&mut data, *value);
+            }
+            _ => {
+                return Err(RenogyError::UnsupportedOperation);
+            }
+        }
+
+        Ok(data)
     }
 }
