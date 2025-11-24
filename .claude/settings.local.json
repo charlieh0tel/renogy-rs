@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cargo run:*)",
       "Bash(cargo clippy:*)",
-      "Bash(cargo:*)"
+      "Bash(cargo:*)",
+      "WebFetch(domain:)"
     ],
     "deny": [],
     "ask": []
