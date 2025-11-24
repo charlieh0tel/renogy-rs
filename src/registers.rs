@@ -26,7 +26,7 @@ pub enum Value {
     String(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Register {
     CellCount,
     CellVoltage(u8),
@@ -95,7 +95,7 @@ pub enum Register {
 }
 
 impl Register {
-    pub fn address(&self) -> u16 {
+    pub const fn address(&self) -> u16 {
         match self {
             Register::CellCount => 5000,
             Register::CellVoltage(n) => 5000 + *n as u16,
@@ -164,7 +164,7 @@ impl Register {
         }
     }
 
-    pub fn quantity(&self) -> u16 {
+    pub const fn quantity(&self) -> u16 {
         match self {
             Register::RemainingCapacity
             | Register::TotalCapacity

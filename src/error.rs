@@ -26,7 +26,7 @@ pub enum ModbusExceptionCode {
 }
 
 impl fmt::Display for RenogyError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RenogyError::InvalidData => write!(f, "Invalid data"),
             RenogyError::CrcMismatch => write!(f, "CRC mismatch"),
@@ -41,7 +41,7 @@ impl fmt::Display for RenogyError {
 }
 
 impl fmt::Display for ModbusExceptionCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ModbusExceptionCode::IllegalFunction => write!(f, "Illegal function (01h)"),
             ModbusExceptionCode::IllegalDataAddress => write!(f, "Illegal data address (02h)"),
@@ -61,7 +61,7 @@ impl fmt::Display for ModbusExceptionCode {
 }
 
 impl ModbusExceptionCode {
-    pub fn from_u8(code: u8) -> Option<Self> {
+    pub const fn from_u8(code: u8) -> Option<Self> {
         match code {
             0x01 => Some(ModbusExceptionCode::IllegalFunction),
             0x02 => Some(ModbusExceptionCode::IllegalDataAddress),

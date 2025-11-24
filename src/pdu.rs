@@ -3,7 +3,7 @@ use crc::{CRC_16_MODBUS, Crc};
 
 pub const MODBUS_CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_MODBUS);
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum FunctionCode {
     ReadHoldingRegisters = 0x03,
     WriteSingleRegister = 0x06,
@@ -18,7 +18,7 @@ pub enum FunctionCode {
 }
 
 impl FunctionCode {
-    pub fn from_u8(code: u8) -> Option<FunctionCode> {
+    pub const fn from_u8(code: u8) -> Option<FunctionCode> {
         match code {
             0x03 => Some(FunctionCode::ReadHoldingRegisters),
             0x06 => Some(FunctionCode::WriteSingleRegister),
@@ -35,7 +35,7 @@ impl FunctionCode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pdu {
     pub address: u8,
     pub function_code: FunctionCode,
@@ -43,8 +43,8 @@ pub struct Pdu {
 }
 
 impl Pdu {
-    pub fn new(address: u8, function_code: FunctionCode, payload: Vec<u8>) -> Self {
-        Pdu {
+    pub const fn new(address: u8, function_code: FunctionCode, payload: Vec<u8>) -> Self {
+        Self {
             address,
             function_code,
             payload,
@@ -54,7 +54,7 @@ impl Pdu {
     pub fn serialize(&self) -> Vec<u8> {
         let mut frame = Vec::new();
         frame.push(self.address);
-        frame.push(self.function_code.clone() as u8);
+        frame.push(self.function_code as u8);
         frame.extend(&self.payload);
 
         let crc = MODBUS_CRC.checksum(&frame);

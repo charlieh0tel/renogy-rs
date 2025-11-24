@@ -1,6 +1,18 @@
 use crate::error::Result;
 use crate::pdu::{FunctionCode, Pdu};
 
+// Register addresses for device control
+const SHUTDOWN_REGISTER: u16 = 5222;
+const LOCK_CONTROL_REGISTER: u16 = 5224;
+const TEST_READY_REGISTER: u16 = 5225;
+
+// Control values
+const SHUTDOWN_VALUE: u16 = 1;
+const LOCK_VALUE: u16 = 0x5A5A;
+const UNLOCK_VALUE: u16 = 0xA5A5;
+const TEST_BEGIN_VALUE: u16 = 0x5A5A;
+const TEST_END_VALUE: u16 = 0xA5A5;
+
 /// BMS device operation commands
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceCommand {
@@ -35,40 +47,33 @@ impl DeviceCommand {
                 vec![0x00, 0x00, 0x00, 0x01], // Supplement data as per PDF
             ),
             DeviceCommand::Shutdown => {
-                let mut payload = Vec::new();
-                payload.extend_from_slice(&5222u16.to_be_bytes()); // ShutdownCommand register address
-                payload.extend_from_slice(&1u16.to_be_bytes()); // Shutdown value
-                Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+                Self::create_write_pdu(device_address, SHUTDOWN_REGISTER, SHUTDOWN_VALUE)
             }
             DeviceCommand::Lock => {
-                let mut payload = Vec::new();
-                payload.extend_from_slice(&5224u16.to_be_bytes()); // LockControl register address
-                payload.extend_from_slice(&0x5A5Au16.to_be_bytes()); // Lock value
-                Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+                Self::create_write_pdu(device_address, LOCK_CONTROL_REGISTER, LOCK_VALUE)
             }
             DeviceCommand::Unlock => {
-                let mut payload = Vec::new();
-                payload.extend_from_slice(&5224u16.to_be_bytes()); // LockControl register address
-                payload.extend_from_slice(&0xA5A5u16.to_be_bytes()); // Unlock value
-                Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+                Self::create_write_pdu(device_address, LOCK_CONTROL_REGISTER, UNLOCK_VALUE)
             }
             DeviceCommand::TestBegin => {
-                let mut payload = Vec::new();
-                payload.extend_from_slice(&5225u16.to_be_bytes()); // TestReady register address
-                payload.extend_from_slice(&0x5A5Au16.to_be_bytes()); // Test begin value
-                Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+                Self::create_write_pdu(device_address, TEST_READY_REGISTER, TEST_BEGIN_VALUE)
             }
             DeviceCommand::TestEnd => {
-                let mut payload = Vec::new();
-                payload.extend_from_slice(&5225u16.to_be_bytes()); // TestReady register address
-                payload.extend_from_slice(&0xA5A5u16.to_be_bytes()); // Test end value
-                Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+                Self::create_write_pdu(device_address, TEST_READY_REGISTER, TEST_END_VALUE)
             }
         }
     }
 
+    /// Helper method to create write PDU for register operations
+    fn create_write_pdu(device_address: u8, register_address: u16, value: u16) -> Pdu {
+        let mut payload = Vec::new();
+        payload.extend_from_slice(&register_address.to_be_bytes());
+        payload.extend_from_slice(&value.to_be_bytes());
+        Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
+    }
+
     /// Check if this command requires device unlock first
-    pub fn requires_unlock(&self) -> bool {
+    pub const fn requires_unlock(&self) -> bool {
         matches!(
             self,
             DeviceCommand::RestoreFactoryDefault | DeviceCommand::ClearHistory
@@ -99,15 +104,24 @@ pub struct PowerSettings {
 }
 
 impl PowerSettings {
+    const MAX_POWER_PERCENT: u8 = 100;
+
     /// Create new power settings with validation
     pub fn new(charge_power_percent: u8, discharge_power_percent: u8) -> Result<Self> {
-        if charge_power_percent > 100 || discharge_power_percent > 100 {
+        if charge_power_percent > Self::MAX_POWER_PERCENT
+            || discharge_power_percent > Self::MAX_POWER_PERCENT
+        {
             return Err(crate::error::RenogyError::InvalidRegisterRange);
         }
-        Ok(PowerSettings {
+        Ok(Self {
             charge_power_percent,
             discharge_power_percent,
         })
+    }
+
+    /// Validate a power percentage value
+    pub const fn is_valid_percent(percent: u8) -> bool {
+        percent <= Self::MAX_POWER_PERCENT
     }
 }
 
@@ -123,21 +137,26 @@ pub struct AcpConfig {
 }
 
 impl AcpConfig {
+    const MIN_ACP_VALUE: u8 = 1;
+    const MAX_ACP_VALUE: u8 = 254;
+
     /// Create new ACP configuration with validation
     pub fn new(broadcast: u8, configure: u8, shake: u8) -> Result<Self> {
-        if broadcast == 0
-            || broadcast > 254
-            || configure == 0
-            || configure > 254
-            || shake == 0
-            || shake > 254
+        if !Self::is_valid_acp_value(broadcast)
+            || !Self::is_valid_acp_value(configure)
+            || !Self::is_valid_acp_value(shake)
         {
             return Err(crate::error::RenogyError::InvalidRegisterRange);
         }
-        Ok(AcpConfig {
+        Ok(Self {
             broadcast,
             configure,
             shake,
         })
+    }
+
+    /// Validate an ACP value (must be 1-254)
+    pub const fn is_valid_acp_value(value: u8) -> bool {
+        value >= Self::MIN_ACP_VALUE && value <= Self::MAX_ACP_VALUE
     }
 }
