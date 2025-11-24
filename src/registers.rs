@@ -9,7 +9,7 @@ pub enum Value {
     ElectricPotential(ElectricPotential),
     ElectricCurrent(ElectricCurrent),
     ThermodynamicTemperature(ThermodynamicTemperature),
-    Integer(i32),
+    Integer(u32),
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,13 +49,13 @@ impl Register {
     pub fn parse_value(&self, data: &[u8]) -> Value {
         match self {
             Register::CellCount => {
-                Value::Integer(BigEndian::read_u16(data) as i32)
+                Value::Integer(BigEndian::read_u16(data) as u32)
             }
             Register::CellVoltage(_) => Value::ElectricPotential(ElectricPotential::new::<volt>(
                 BigEndian::read_u16(data) as f32 * 0.1,
             )),
             Register::CellTemperatureCount => {
-                Value::Integer(BigEndian::read_u16(data) as i32)
+                Value::Integer(BigEndian::read_u16(data) as u32)
             }
             Register::CellTemperature(_) => Value::ThermodynamicTemperature(
                 ThermodynamicTemperature::new::<degree_celsius>(
