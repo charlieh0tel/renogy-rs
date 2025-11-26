@@ -18,6 +18,7 @@ pub enum FunctionCode {
 }
 
 impl FunctionCode {
+    #[must_use]
     pub const fn from_u8(code: u8) -> Option<FunctionCode> {
         match code {
             0x03 => Some(FunctionCode::ReadHoldingRegisters),
@@ -43,6 +44,7 @@ pub struct Pdu {
 }
 
 impl Pdu {
+    #[must_use]
     pub const fn new(address: u8, function_code: FunctionCode, payload: Vec<u8>) -> Self {
         Self {
             address,
@@ -51,17 +53,18 @@ impl Pdu {
         }
     }
 
+    #[must_use]
     pub fn serialize(&self) -> Vec<u8> {
-        let mut frame = Vec::new();
+        let mut frame = Vec::with_capacity(2 + self.payload.len() + 2);
         frame.push(self.address);
         frame.push(self.function_code as u8);
         frame.extend(&self.payload);
-
         let crc = MODBUS_CRC.checksum(&frame);
         frame.extend(&crc.to_le_bytes());
         frame
     }
 
+    #[must_use]
     pub fn is_error_response(&self) -> bool {
         matches!(
             self.function_code,
@@ -73,6 +76,7 @@ impl Pdu {
         )
     }
 
+    #[must_use]
     pub fn is_write_operation(&self) -> bool {
         matches!(
             self.function_code,

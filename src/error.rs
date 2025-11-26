@@ -30,8 +30,8 @@ impl fmt::Display for RenogyError {
         match self {
             RenogyError::InvalidData => write!(f, "Invalid data"),
             RenogyError::CrcMismatch => write!(f, "CRC mismatch"),
-            RenogyError::Io(e) => write!(f, "IO error: {}", e),
-            RenogyError::ModbusException(code) => write!(f, "Modbus exception: {}", code),
+            RenogyError::Io(e) => write!(f, "IO error: {e}"),
+            RenogyError::ModbusException(code) => write!(f, "Modbus exception: {code}"),
             RenogyError::UnsupportedOperation => write!(f, "Unsupported operation"),
             RenogyError::DeviceControlFailed => write!(f, "Device control operation failed"),
             RenogyError::InvalidRegisterRange => write!(f, "Invalid register address or range"),
@@ -61,6 +61,7 @@ impl fmt::Display for ModbusExceptionCode {
 }
 
 impl ModbusExceptionCode {
+    #[must_use]
     pub const fn from_u8(code: u8) -> Option<Self> {
         match code {
             0x01 => Some(ModbusExceptionCode::IllegalFunction),
@@ -82,6 +83,18 @@ impl std::error::Error for RenogyError {}
 impl From<std::io::Error> for RenogyError {
     fn from(err: std::io::Error) -> RenogyError {
         RenogyError::Io(err)
+    }
+}
+
+impl From<zbus::Error> for RenogyError {
+    fn from(err: zbus::Error) -> RenogyError {
+        RenogyError::Io(std::io::Error::other(err.to_string()))
+    }
+}
+
+impl From<zbus::fdo::Error> for RenogyError {
+    fn from(err: zbus::fdo::Error) -> RenogyError {
+        RenogyError::Io(std::io::Error::other(err.to_string()))
     }
 }
 

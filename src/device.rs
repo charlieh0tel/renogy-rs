@@ -1,12 +1,10 @@
 use crate::error::Result;
 use crate::pdu::{FunctionCode, Pdu};
 
-// Register addresses for device control
 const SHUTDOWN_REGISTER: u16 = 5222;
 const LOCK_CONTROL_REGISTER: u16 = 5224;
 const TEST_READY_REGISTER: u16 = 5225;
 
-// Control values
 const SHUTDOWN_VALUE: u16 = 1;
 const LOCK_VALUE: u16 = 0x5A5A;
 const UNLOCK_VALUE: u16 = 0xA5A5;
@@ -33,7 +31,7 @@ pub enum DeviceCommand {
 }
 
 impl DeviceCommand {
-    /// Create a PDU for executing this device command
+    #[must_use]
     pub fn create_pdu(&self, device_address: u8) -> Pdu {
         match self {
             DeviceCommand::RestoreFactoryDefault => Pdu::new(
@@ -72,7 +70,7 @@ impl DeviceCommand {
         Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
     }
 
-    /// Check if this command requires device unlock first
+    #[must_use]
     pub const fn requires_unlock(&self) -> bool {
         matches!(
             self,
@@ -119,7 +117,7 @@ impl PowerSettings {
         })
     }
 
-    /// Validate a power percentage value
+    #[must_use]
     pub const fn is_valid_percent(percent: u8) -> bool {
         percent <= Self::MAX_POWER_PERCENT
     }
@@ -155,7 +153,7 @@ impl AcpConfig {
         })
     }
 
-    /// Validate an ACP value (must be 1-254)
+    #[must_use]
     pub const fn is_valid_acp_value(value: u8) -> bool {
         value >= Self::MIN_ACP_VALUE && value <= Self::MAX_ACP_VALUE
     }

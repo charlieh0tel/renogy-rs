@@ -19,6 +19,7 @@ pub struct CellVoltageAlarms {
 }
 
 impl CellVoltageAlarms {
+    #[must_use]
     pub fn from_bits(value: u32) -> Self {
         let mut alarms = [CellVoltageAlarm::default(); 16];
         for (i, alarm) in alarms.iter_mut().enumerate() {
@@ -54,6 +55,7 @@ pub struct CellTemperatureAlarms {
 }
 
 impl CellTemperatureAlarms {
+    #[must_use]
     pub fn from_bits(value: u32) -> Self {
         let mut alarms = [CellTemperatureAlarm::default(); 16];
         for (i, alarm) in alarms.iter_mut().enumerate() {
@@ -165,6 +167,7 @@ pub struct CellVoltageErrors {
 }
 
 impl CellVoltageErrors {
+    #[must_use]
     pub fn from_bits(value: u16) -> Self {
         let mut errors = [CellVoltageError::default(); 16];
         for (i, error) in errors.iter_mut().enumerate() {

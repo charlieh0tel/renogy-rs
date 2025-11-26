@@ -60,7 +60,6 @@ pub enum Register {
     BatteryName,
     SoftwareVersion,
     ManufacturerName,
-    // Configuration registers (5200-5229)
     CellOverVoltageLimit,
     CellHighVoltageLimit,
     CellLowVoltageLimit,
@@ -90,13 +89,13 @@ pub enum Register {
     UniqueIdentificationCode,
     ChargePowerSetting,
     DischargePowerSetting,
-    // ACP Protocol registers (61440-61442)
     AcpBroadcast,
     AcpConfigure,
     AcpShake,
 }
 
 impl Register {
+    #[must_use]
     pub const fn address(&self) -> u16 {
         match self {
             Register::CellCount => 5000,
@@ -131,7 +130,6 @@ impl Register {
             Register::BatteryName => 5122,
             Register::SoftwareVersion => 5130,
             Register::ManufacturerName => 5132,
-            // Configuration registers
             Register::CellOverVoltageLimit => 5200,
             Register::CellHighVoltageLimit => 5201,
             Register::CellLowVoltageLimit => 5202,
@@ -161,13 +159,13 @@ impl Register {
             Register::UniqueIdentificationCode => 5226,
             Register::ChargePowerSetting => 5228,
             Register::DischargePowerSetting => 5229,
-            // ACP Protocol registers
             Register::AcpBroadcast => 61440,
             Register::AcpConfigure => 61441,
             Register::AcpShake => 61442,
         }
     }
 
+    #[must_use]
     pub const fn quantity(&self) -> u16 {
         match self {
             Register::RemainingCapacity
@@ -175,19 +173,18 @@ impl Register {
             | Register::CellVoltageAlarmInfo
             | Register::CellTemperatureAlarmInfo
             | Register::OtherAlarmInfo
-            | Register::MainlineVersion => 2,
-            Register::SnNumber => 8,
-            Register::BatteryName => 8,
-            Register::SoftwareVersion => 2,
+            | Register::MainlineVersion
+            | Register::SoftwareVersion
+            | Register::UniqueIdentificationCode => 2,
+            Register::SnNumber | Register::BatteryName => 8,
             Register::ManufacturerName => 10,
-            Register::UniqueIdentificationCode => 2,
             _ => 1,
         }
     }
 
-    /// Parse a value from register data (u16 slice from Transport::read_holding_registers).
+    /// Parse a value from register data (u16 slice from `Transport::read_holding_registers`).
+    #[must_use]
     pub fn parse_registers(&self, registers: &[u16]) -> Value {
-        // Convert registers to big-endian bytes
         let mut data = Vec::with_capacity(registers.len() * 2);
         for reg in registers {
             data.extend_from_slice(&reg.to_be_bytes());
@@ -195,65 +192,99 @@ impl Register {
         self.parse_value(&data)
     }
 
-    /// Parse a value from raw byte data.
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn parse_value(&self, data: &[u8]) -> Value {
         match self {
-            Register::CellCount => Value::Integer(BigEndian::read_u16(data) as u32),
-            Register::CellVoltage(_) => Value::ElectricPotential(ElectricPotential::new::<volt>(
-                BigEndian::read_u16(data) as f32 * 0.1,
-            )),
-            Register::CellTemperatureCount => Value::Integer(BigEndian::read_u16(data) as u32),
-            Register::CellTemperature(_) => {
-                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
-                    BigEndian::read_u16(data) as f32 * 0.1,
-                ))
-            }
-            Register::BmsTemperature => {
-                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
-                    BigEndian::read_u16(data) as f32 * 0.1,
-                ))
-            }
-            Register::EnvironmentTemperatureCount => {
-                Value::Integer(BigEndian::read_u16(data) as u32)
-            }
-            Register::EnvironmentTemperature(_) => {
-                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
-                    BigEndian::read_u16(data) as f32 * 0.1,
-                ))
-            }
-            Register::HeaterTemperatureCount => Value::Integer(BigEndian::read_u16(data) as u32),
-            Register::HeaterTemperature(_) => {
-                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
-                    BigEndian::read_u16(data) as f32 * 0.1,
-                ))
-            }
-            Register::Current => Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
-                BigEndian::read_i16(data) as f32 * 0.01,
-            )),
-            Register::ModuleVoltage => Value::ElectricPotential(ElectricPotential::new::<volt>(
-                BigEndian::read_u16(data) as f32 * 0.1,
-            )),
-            Register::RemainingCapacity => Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
-                BigEndian::read_u32(data) as f32 * 0.001,
-            )),
-            Register::TotalCapacity => Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
-                BigEndian::read_u32(data) as f32 * 0.001,
-            )),
-            Register::CycleNumber => Value::Integer(BigEndian::read_u16(data) as u32),
-            Register::ChargeVoltageLimit => Value::ElectricPotential(
+            // Integer values (u16 -> u32)
+            Register::CellCount
+            | Register::CellTemperatureCount
+            | Register::EnvironmentTemperatureCount
+            | Register::HeaterTemperatureCount
+            | Register::CycleNumber
+            | Register::ShutdownCommand
+            | Register::DeviceId
+            | Register::LockControl
+            | Register::TestReady
+            | Register::ChargePowerSetting
+            | Register::DischargePowerSetting
+            | Register::AcpBroadcast
+            | Register::AcpConfigure
+            | Register::AcpShake => Value::Integer(BigEndian::read_u16(data) as u32),
+
+            // Voltage (0.1V resolution)
+            Register::CellVoltage(_)
+            | Register::ModuleVoltage
+            | Register::ChargeVoltageLimit
+            | Register::DischargeVoltageLimit
+            | Register::CellOverVoltageLimit
+            | Register::CellHighVoltageLimit
+            | Register::CellLowVoltageLimit
+            | Register::CellUnderVoltageLimit
+            | Register::ModuleOverVoltageLimit
+            | Register::ModuleHighVoltageLimit
+            | Register::ModuleLowVoltageLimit
+            | Register::ModuleUnderVoltageLimit => Value::ElectricPotential(
                 ElectricPotential::new::<volt>(BigEndian::read_u16(data) as f32 * 0.1),
             ),
-            Register::DischargeVoltageLimit => {
-                Value::ElectricPotential(ElectricPotential::new::<volt>(
+
+            // Temperature (0.1°C resolution, unsigned)
+            Register::CellTemperature(_)
+            | Register::BmsTemperature
+            | Register::EnvironmentTemperature(_)
+            | Register::HeaterTemperature(_) => {
+                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
                     BigEndian::read_u16(data) as f32 * 0.1,
                 ))
             }
-            Register::ChargeCurrentLimit => Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
-                BigEndian::read_u16(data) as f32 * 0.01,
-            )),
-            Register::DischargeCurrentLimit => Value::ElectricCurrent(
+
+            // Temperature limits (0.1°C resolution, signed)
+            Register::ChargeOverTemperatureLimit
+            | Register::ChargeHighTemperatureLimit
+            | Register::ChargeLowTemperatureLimit
+            | Register::ChargeUnderTemperatureLimit
+            | Register::DischargeOverTemperatureLimit
+            | Register::DischargeHighTemperatureLimit
+            | Register::DischargeLowTemperatureLimit
+            | Register::DischargeUnderTemperatureLimit => {
+                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
+                    BigEndian::read_i16(data) as f32 * 0.1,
+                ))
+            }
+
+            // Current (0.01A resolution, signed)
+            Register::Current | Register::DischargeCurrentLimit => Value::ElectricCurrent(
                 ElectricCurrent::new::<ampere>(BigEndian::read_i16(data) as f32 * 0.01),
             ),
+
+            // Current (0.01A resolution, unsigned)
+            Register::ChargeCurrentLimit
+            | Register::ChargeOver2CurrentLimit
+            | Register::ChargeOver1CurrentLimit
+            | Register::ChargeHighCurrentLimit
+            | Register::DischargeOver2CurrentLimit
+            | Register::DischargeOver1CurrentLimit
+            | Register::DischargeHighCurrentLimit => Value::ElectricCurrent(
+                ElectricCurrent::new::<ampere>(BigEndian::read_u16(data) as f32 * 0.01),
+            ),
+
+            // Capacity (0.001Ah resolution, u32)
+            Register::RemainingCapacity | Register::TotalCapacity => Value::ElectricCurrent(
+                ElectricCurrent::new::<ampere>(BigEndian::read_u32(data) as f32 * 0.001),
+            ),
+
+            // String values
+            Register::SnNumber
+            | Register::ManufactureVersion
+            | Register::MainlineVersion
+            | Register::CommunicationProtocolVersion
+            | Register::BatteryName
+            | Register::SoftwareVersion
+            | Register::ManufacturerName => {
+                Value::String(String::from_utf8_lossy(data).to_string())
+            }
+
+            // Alarm/status registers
             Register::CellVoltageAlarmInfo => {
                 Value::CellVoltageAlarms(CellVoltageAlarms::from_bits(BigEndian::read_u32(data)))
             }
@@ -275,57 +306,9 @@ impl Register {
             Register::ChargeDischargeStatus => Value::ChargeDischargeStatus(
                 ChargeDischargeStatus::from_bits_truncate(BigEndian::read_u16(data)),
             ),
-            Register::SnNumber
-            | Register::ManufactureVersion
-            | Register::MainlineVersion
-            | Register::CommunicationProtocolVersion
-            | Register::BatteryName
-            | Register::SoftwareVersion
-            | Register::ManufacturerName => {
-                Value::String(String::from_utf8_lossy(data).to_string())
-            }
-            // Configuration register parsing
-            Register::CellOverVoltageLimit
-            | Register::CellHighVoltageLimit
-            | Register::CellLowVoltageLimit
-            | Register::CellUnderVoltageLimit
-            | Register::ModuleOverVoltageLimit
-            | Register::ModuleHighVoltageLimit
-            | Register::ModuleLowVoltageLimit
-            | Register::ModuleUnderVoltageLimit => Value::ElectricPotential(
-                ElectricPotential::new::<volt>(BigEndian::read_u16(data) as f32 * 0.1),
-            ),
-            Register::ChargeOverTemperatureLimit
-            | Register::ChargeHighTemperatureLimit
-            | Register::ChargeLowTemperatureLimit
-            | Register::ChargeUnderTemperatureLimit
-            | Register::DischargeOverTemperatureLimit
-            | Register::DischargeHighTemperatureLimit
-            | Register::DischargeLowTemperatureLimit
-            | Register::DischargeUnderTemperatureLimit => {
-                Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
-                    BigEndian::read_i16(data) as f32 * 0.1,
-                ))
-            }
-            Register::ChargeOver2CurrentLimit
-            | Register::ChargeOver1CurrentLimit
-            | Register::ChargeHighCurrentLimit
-            | Register::DischargeOver2CurrentLimit
-            | Register::DischargeOver1CurrentLimit
-            | Register::DischargeHighCurrentLimit => Value::ElectricCurrent(
-                ElectricCurrent::new::<ampere>(BigEndian::read_u16(data) as f32 * 0.01),
-            ),
-            Register::ShutdownCommand
-            | Register::DeviceId
-            | Register::LockControl
-            | Register::TestReady
-            | Register::ChargePowerSetting
-            | Register::DischargePowerSetting => Value::Integer(BigEndian::read_u16(data) as u32),
+
+            // Unique ID (u32)
             Register::UniqueIdentificationCode => Value::Integer(BigEndian::read_u32(data)),
-            // ACP Protocol registers
-            Register::AcpBroadcast | Register::AcpConfigure | Register::AcpShake => {
-                Value::Integer(BigEndian::read_u16(data) as u32)
-            }
         }
     }
 
@@ -336,7 +319,6 @@ impl Register {
                 | Register::DischargeVoltageLimit
                 | Register::ChargeCurrentLimit
                 | Register::DischargeCurrentLimit
-                // Configuration registers are writable
                 | Register::CellOverVoltageLimit
                 | Register::CellHighVoltageLimit
                 | Register::CellLowVoltageLimit
@@ -376,7 +358,6 @@ impl Register {
         let mut data = vec![0u8; (self.quantity() * 2) as usize];
 
         match (self, value) {
-            // Original writable registers
             (
                 Register::ChargeVoltageLimit | Register::DischargeVoltageLimit,
                 Value::ElectricPotential(voltage),
@@ -401,7 +382,6 @@ impl Register {
                 let raw_value = (current.get::<ampere>() * 1000.0) as u32;
                 BigEndian::write_u32(&mut data, raw_value);
             }
-            // Configuration voltage limits
             (
                 Register::CellOverVoltageLimit
                 | Register::CellHighVoltageLimit
@@ -416,7 +396,6 @@ impl Register {
                 let raw_value = (voltage.get::<volt>() * 10.0) as u16;
                 BigEndian::write_u16(&mut data, raw_value);
             }
-            // Configuration temperature limits
             (
                 Register::ChargeOverTemperatureLimit
                 | Register::ChargeHighTemperatureLimit
@@ -431,7 +410,6 @@ impl Register {
                 let raw_value = (temp.get::<degree_celsius>() * 10.0) as i16;
                 BigEndian::write_i16(&mut data, raw_value);
             }
-            // Configuration current limits
             (
                 Register::ChargeOver2CurrentLimit
                 | Register::ChargeOver1CurrentLimit
@@ -444,7 +422,6 @@ impl Register {
                 let raw_value = (current.get::<ampere>() * 100.0) as u16;
                 BigEndian::write_u16(&mut data, raw_value);
             }
-            // Control and configuration registers
             (
                 Register::ShutdownCommand
                 | Register::DeviceId
