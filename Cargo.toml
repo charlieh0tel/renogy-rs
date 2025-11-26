@@ -10,4 +10,7 @@ uom = { version = "0.35.0", features = ["si", "f32", "std"] }
 bitflags = "2.4.1"
 tokio = { version = "1", features = ["full"] }
 tokio-modbus = "0.8.1"
+bluebus = "0.1.10"
+zbus = "5.12.0"
+tokio-serial = "5.4.5"
 

@@ -1,11 +1,17 @@
 pub mod alarm;
+pub mod bt2;
 pub mod device;
 pub mod error;
 pub mod pdu;
 pub mod registers;
+pub mod serial;
+pub mod transport;
 
 pub use alarm::*;
+pub use bt2::{BT2_NAME_PREFIX, Bt2Transport, discover_bt2_devices};
 pub use device::{AcpConfig, DeviceCommand, DeviceInfo, PowerSettings};
 pub use error::{ModbusExceptionCode, RenogyError, Result};
 pub use pdu::{FunctionCode, Pdu};
 pub use registers::{Register, Value};
+pub use serial::SerialTransport;
+pub use transport::Transport;

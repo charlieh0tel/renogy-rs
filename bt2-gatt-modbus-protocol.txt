@@ -1,0 +1,116 @@
+RENOGY BT-2 GATT/MODBUS PROTOCOL ANALYSIS
+=========================================
+
+Captured from btsnoop trace of Renogy phone app communicating with
+two RBT50LFP batteries via BT-2 Bluetooth adapter.
+
+
+GATT CHARACTERISTIC HANDLES
+---------------------------
+Write handle:  0x001D  (used for sending Modbus requests)
+Notify handle: 0x002E  (used for receiving Modbus responses)
+
+
+GATT WRITE COMMAND (App → BT-2)
+-------------------------------
+ATT Opcode: 0x52 (Write Command - no response expected)
+
+Packet structure:
+  02 02 00 0f 00   - HCI ACL header (connection handle, length)
+  0b 00            - L2CAP length (11 bytes)
+  04 00            - L2CAP CID 0x0004 (ATT)
+  52               - ATT Write Command opcode
+  1d 00            - GATT characteristic handle 0x001D (little endian)
+  --- Modbus RTU frame ---
+  XX               - Slave address (0x30 = BMS 0, 0x31 = BMS 1)
+  03               - Function code (0x03 = Read Holding Registers)
+  HH LL            - Start register address (big endian)
+  QQ QQ            - Quantity of registers (big endian)
+  CC CC            - CRC-16 (little endian)
+
+Example request - Read 6 registers starting at 5042 from BMS 1:
+  02 02 00 0f 00 0b 00 04 00 52 1d 00 31 03 13 b2 00 06 64 9b
+                                      ^^ ^^ ^^^^^ ^^^^^ ^^^^^
+                                      |  |  |     |     CRC-16
+                                      |  |  |     Quantity = 6
+                                      |  |  Register 0x13B2 = 5042
+                                      |  Function code 0x03
+                                      BMS address 0x31
+
+
+GATT NOTIFICATION (BT-2 → App)
+------------------------------
+ATT Opcode: 0x1B (Handle Value Notification)
+
+Packet structure:
+  02 02 20 XX 00   - HCI ACL header (with PB flags)
+  YY 00            - L2CAP length
+  04 00            - L2CAP CID 0x0004 (ATT)
+  1b               - ATT Handle Value Notification opcode
+  2e 00            - GATT characteristic handle 0x002E (little endian)
+  --- Modbus RTU response ---
+  XX               - Slave address echoed back
+  03               - Function code echoed back
+  NN               - Byte count (number of data bytes)
+  DD DD ...        - Register data (2 bytes per register, big endian)
+  CC CC            - CRC-16 (little endian)
+
+Example response - 6 registers (12 bytes) from BMS 1:
+  02 02 20 18 00 14 00 04 00 1b 2e 00 31 03 0c 00 00 02 0c ...
+                                      ^^ ^^ ^^ ^^^^^^^^^^^
+                                      |  |  |  Register data
+                                      |  |  Byte count = 12
+                                      |  Function code 0x03
+                                      BMS address 0x31
+
+
+MODBUS COMMANDS OBSERVED IN CAPTURE
+-----------------------------------
+1. Read registers 5042-5047 (Current, ModuleVoltage, Capacity):
+   - BMS 0: 30 03 13 b2 00 06 [CRC]
+   - BMS 1: 31 03 13 b2 00 06 [CRC]
+
+2. Read registers 5104+ (OtherAlarmInfo through ManufacturerName):
+   - BMS 0: 30 03 13 f0 00 1c [CRC]  (28 registers)
+   - BMS 1: 31 03 13 f0 00 1c [CRC]  (28 registers)
+
+3. Read registers 5000+ (CellCount, CellVoltages, Temperatures):
+   - BMS 1: 31 03 13 88 00 22 [CRC]  (34 registers)
+
+
+BMS ADDRESSING
+--------------
+The BT-2 can communicate with multiple BMS units:
+  0x30 = Battery/BMS 0
+  0x31 = Battery/BMS 1
+  (potentially 0x32, 0x33, etc. for more batteries)
+
+
+REGISTER ADDRESS REFERENCE
+--------------------------
+Hex     Decimal  Register
+0x1388  5000     CellCount
+0x13A9  5017     CellTemperatureCount
+0x13B2  5042     Current
+0x13B3  5043     ModuleVoltage
+0x13B4  5044     RemainingCapacity (2 regs)
+0x13B6  5046     TotalCapacity (2 regs)
+0x13F0  5104     OtherAlarmInfo
+0x13F6  5110     SnNumber
+0x1402  5122     BatteryName
+0x140A  5130     SoftwareVersion
+0x140C  5132     ManufacturerName
+
+
+CRC-16 CALCULATION
+------------------
+Standard Modbus CRC-16 (polynomial 0xA001, init 0xFFFF)
+CRC bytes are transmitted in little-endian order.
+
+
+NOTES
+-----
+- The Modbus RTU frame is sent directly as the ATT payload
+- No additional framing or escaping is applied
+- Large responses may be fragmented across multiple BLE packets
+- The BT-2 acts as a transparent bridge between BLE and the RS-485 bus
