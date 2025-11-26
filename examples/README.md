@@ -96,7 +96,8 @@ async fn read_cell_voltage(
     let pdu = Pdu::new(bms_addr, FunctionCode::ReadHoldingRegisters, payload);
     let response = transport.send_receive(&pdu).await?;
 
-    Ok(register.parse_value(&response.payload))
+    // Skip the byte count prefix in ReadHoldingRegisters response
+    Ok(register.parse_value(&response.payload[1..]))
 }
 ```
 
