@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Connecting to a BT-2
 
 ```rust
-use renogy_rs::{Bt2Transport, Transport, Pdu, FunctionCode, Register};
+use renogy_rs::{Bt2Transport, Transport, Register};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -57,16 +57,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     "/org/bluez/hci0/dev_FD_86_6D_73_XX_XX"
     // ).await?;
 
-    // Create a read request for cell voltages (BMS address 0x30)
+    // Read cell voltage (BMS address 0x30)
     let register = Register::CellVoltage(1);
-    let mut payload = Vec::new();
-    payload.extend_from_slice(&register.address().to_be_bytes());
-    payload.extend_from_slice(&register.quantity().to_be_bytes());
-    let pdu = Pdu::new(0x30, FunctionCode::ReadHoldingRegisters, payload);
+    let regs = transport.read_holding_registers(
+        0x30,
+        register.address(),
+        register.quantity()
+    ).await?;
 
-    // Send and receive via BT-2
-    let response = transport.send_receive(&pdu).await?;
-    println!("Response: {:?}", response);
+    let value = register.parse_registers(&regs);
+    println!("Cell 1: {:?}", value);
 
     Ok(())
 }
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The BT-2 can communicate with multiple BMS units on the same RS-485 bus:
 
 ```rust
-use renogy_rs::{Bt2Transport, Transport, Pdu, FunctionCode, Register};
+use renogy_rs::{Bt2Transport, Transport, Register, Value};
 
 // BMS addresses (as seen in btsnoop capture)
 const BMS_0: u8 = 0x30;  // Battery 0
@@ -89,15 +89,70 @@ async fn read_cell_voltage(
     cell: u8
 ) -> renogy_rs::Result<renogy_rs::Value> {
     let register = Register::CellVoltage(cell);
-    let mut payload = Vec::new();
-    payload.extend_from_slice(&register.address().to_be_bytes());
-    payload.extend_from_slice(&register.quantity().to_be_bytes());
+    let regs = transport.read_holding_registers(
+        bms_addr,
+        register.address(),
+        register.quantity()
+    ).await?;
 
-    let pdu = Pdu::new(bms_addr, FunctionCode::ReadHoldingRegisters, payload);
-    let response = transport.send_receive(&pdu).await?;
+    Ok(register.parse_registers(&regs))
+}
+```
 
-    // Skip the byte count prefix in ReadHoldingRegisters response
-    Ok(register.parse_value(&response.payload[1..]))
+## Serial/RS-485 Transport
+
+The library includes a serial transport for direct RS-485 Modbus RTU communication using `tokio-modbus`.
+
+### Opening a Serial Connection
+
+```rust
+use renogy_rs::{SerialTransport, Transport, Register};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Open serial port with default baud rate (9600)
+    let mut transport = SerialTransport::open("/dev/ttyUSB0", 0x01).await?;
+
+    // Or specify baud rate explicitly
+    // let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01).await?;
+
+    // Read cell voltage
+    let register = Register::CellVoltage(1);
+    let regs = transport.read_holding_registers(
+        0x01,
+        register.address(),
+        register.quantity()
+    ).await?;
+
+    let value = register.parse_registers(&regs);
+    println!("Cell 1: {:?}", value);
+
+    Ok(())
+}
+```
+
+### Communicating with Multiple Devices
+
+The serial transport can communicate with multiple devices on the same bus:
+
+```rust
+use renogy_rs::{SerialTransport, Transport, Register};
+
+async fn read_from_multiple_devices(transport: &mut SerialTransport) -> renogy_rs::Result<()> {
+    let register = Register::CellVoltage(1);
+
+    // Read from device 0x01
+    let regs1 = transport.read_holding_registers(0x01, register.address(), register.quantity()).await?;
+    let value1 = register.parse_registers(&regs1);
+
+    // Read from device 0x02
+    let regs2 = transport.read_holding_registers(0x02, register.address(), register.quantity()).await?;
+    let value2 = register.parse_registers(&regs2);
+
+    println!("Device 1: {:?}", value1);
+    println!("Device 2: {:?}", value2);
+
+    Ok(())
 }
 ```
 
@@ -106,25 +161,25 @@ async fn read_cell_voltage(
 ### Reading BMS Data
 
 ```rust
-use renogy_rs::{Register, Value, Pdu, FunctionCode};
+use renogy_rs::{Register, Value};
 
-// Create a read request for cell voltage
+// Create a register reference
 let register = Register::CellVoltage(1);
-let mut payload = Vec::new();
-payload.extend_from_slice(&register.address().to_be_bytes());
-payload.extend_from_slice(&register.quantity().to_be_bytes());
-let pdu = Pdu::new(1, FunctionCode::ReadHoldingRegisters, payload);
 
-// Simulate response data (normally from BMS)
-let response_data = 33u16.to_be_bytes().to_vec(); // 3.3V
-let value = register.parse_value(&response_data);
+// After reading from transport:
+// let regs = transport.read_holding_registers(addr, register.address(), register.quantity()).await?;
+// let value = register.parse_registers(&regs);
+
+// Simulated register data
+let regs = vec![33u16]; // 3.3V (raw value * 0.1)
+let value = register.parse_registers(&regs);
 println!("Cell 1 voltage: {:?}", value); // 3.3 volts
 ```
 
 ### Writing Configuration
 
 ```rust
-use renogy_rs::{Register, Value};
+use renogy_rs::{Register, Value, Transport};
 use uom::si::{electric_potential::volt, f32::ElectricPotential};
 
 // Set cell over voltage limit to 4.2V
@@ -132,9 +187,12 @@ let register = Register::CellOverVoltageLimit;
 let voltage_limit = ElectricPotential::new::<volt>(4.2);
 let value = Value::ElectricPotential(voltage_limit);
 
-// Serialize for writing to BMS
+// Serialize to register value
 let data = register.serialize_value(&value).unwrap();
-// data = [0, 42] (4.2V * 10 = 42, encoded as big-endian u16)
+let reg_value = u16::from_be_bytes([data[0], data[1]]);
+
+// Write to device
+// transport.write_single_register(addr, register.address(), reg_value).await?;
 ```
 
 ## Device Control Commands
@@ -142,33 +200,35 @@ let data = register.serialize_value(&value).unwrap();
 ### Factory Reset
 
 ```rust
-use renogy_rs::DeviceCommand;
+use renogy_rs::{DeviceCommand, Transport};
 
-let reset_cmd = DeviceCommand::RestoreFactoryDefault;
-if reset_cmd.requires_unlock() {
-    // First unlock the device
-    let unlock_cmd = DeviceCommand::Unlock;
-    let unlock_pdu = unlock_cmd.create_pdu(1);
-    // Send unlock_pdu to BMS
+async fn factory_reset(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+    let reset_cmd = DeviceCommand::RestoreFactoryDefault;
+
+    if reset_cmd.requires_unlock() {
+        // First unlock the device
+        transport.write_single_register(addr, 5224, 0xA5A5).await?;
+    }
+
+    // Perform factory reset using custom function code
+    transport.send_custom(addr, 0x78, &[0x00, 0x00, 0x00, 0x01]).await?;
+
+    Ok(())
 }
-
-// Then perform factory reset
-let reset_pdu = reset_cmd.create_pdu(1);
-// Send reset_pdu to BMS
 ```
 
 ### Device Lock/Unlock
 
 ```rust
-use renogy_rs::DeviceCommand;
+use renogy_rs::Transport;
 
-// Lock device (prevents configuration changes)
-let lock_cmd = DeviceCommand::Lock;
-let lock_pdu = lock_cmd.create_pdu(1);
+async fn lock_device(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+    transport.write_single_register(addr, 5224, 0x5A5A).await
+}
 
-// Unlock device (allows configuration changes)
-let unlock_cmd = DeviceCommand::Unlock;
-let unlock_pdu = unlock_cmd.create_pdu(1);
+async fn unlock_device(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+    transport.write_single_register(addr, 5224, 0xA5A5).await
+}
 ```
 
 ## Configuration Examples
@@ -176,44 +236,52 @@ let unlock_pdu = unlock_cmd.create_pdu(1);
 ### Setting Voltage Limits
 
 ```rust
-use renogy_rs::{Register, Value};
+use renogy_rs::{Register, Value, Transport};
 use uom::si::{electric_potential::volt, f32::ElectricPotential};
 
-// Configure all cell voltage limits
-let limits = [
-    (Register::CellOverVoltageLimit, 4.2),   // Over voltage protection
-    (Register::CellHighVoltageLimit, 4.1),  // High voltage warning
-    (Register::CellLowVoltageLimit, 3.2),   // Low voltage warning
-    (Register::CellUnderVoltageLimit, 3.0), // Under voltage protection
-];
+async fn set_voltage_limits(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+    let limits = [
+        (Register::CellOverVoltageLimit, 4.2),   // Over voltage protection
+        (Register::CellHighVoltageLimit, 4.1),  // High voltage warning
+        (Register::CellLowVoltageLimit, 3.2),   // Low voltage warning
+        (Register::CellUnderVoltageLimit, 3.0), // Under voltage protection
+    ];
 
-for (register, voltage) in limits {
-    let value = Value::ElectricPotential(ElectricPotential::new::<volt>(voltage));
-    let data = register.serialize_value(&value).unwrap();
-    // Create write PDU and send to BMS
+    for (register, voltage) in limits {
+        let value = Value::ElectricPotential(ElectricPotential::new::<volt>(voltage));
+        let data = register.serialize_value(&value).unwrap();
+        let reg_value = u16::from_be_bytes([data[0], data[1]]);
+        transport.write_single_register(addr, register.address(), reg_value).await?;
+    }
+
+    Ok(())
 }
 ```
 
 ### Setting Temperature Limits
 
 ```rust
-use renogy_rs::{Register, Value};
+use renogy_rs::{Register, Value, Transport};
 use uom::si::{thermodynamic_temperature::degree_celsius, f32::ThermodynamicTemperature};
 
-// Configure charge temperature limits
-let temp_limits = [
-    (Register::ChargeOverTemperatureLimit, 60.0),   // Max charge temp
-    (Register::ChargeHighTemperatureLimit, 50.0),  // High temp warning
-    (Register::ChargeLowTemperatureLimit, 5.0),    // Low temp warning
-    (Register::ChargeUnderTemperatureLimit, 0.0),  // Min charge temp
-];
+async fn set_temp_limits(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+    let temp_limits = [
+        (Register::ChargeOverTemperatureLimit, 60.0),   // Max charge temp
+        (Register::ChargeHighTemperatureLimit, 50.0),  // High temp warning
+        (Register::ChargeLowTemperatureLimit, 5.0),    // Low temp warning
+        (Register::ChargeUnderTemperatureLimit, 0.0),  // Min charge temp
+    ];
 
-for (register, temp) in temp_limits {
-    let value = Value::ThermodynamicTemperature(
-        ThermodynamicTemperature::new::<degree_celsius>(temp)
-    );
-    let data = register.serialize_value(&value).unwrap();
-    // Create write PDU and send to BMS
+    for (register, temp) in temp_limits {
+        let value = Value::ThermodynamicTemperature(
+            ThermodynamicTemperature::new::<degree_celsius>(temp)
+        );
+        let data = register.serialize_value(&value).unwrap();
+        let reg_value = i16::from_be_bytes([data[0], data[1]]) as u16;
+        transport.write_single_register(addr, register.address(), reg_value).await?;
+    }
+
+    Ok(())
 }
 ```
 
@@ -251,32 +319,32 @@ for sensor_id in 1..=2 {
 ## Error Handling
 
 ```rust
-use renogy_rs::{RenogyError, ModbusExceptionCode, Pdu};
+use renogy_rs::{RenogyError, ModbusExceptionCode, Transport};
 
-// Parse PDU response
-match Pdu::deserialize(&response_frame) {
-    Ok(pdu) => {
-        // Success - process PDU
-        println!("Received: {:?}", pdu);
-    }
-    Err(RenogyError::ModbusException(code)) => {
-        match code {
-            ModbusExceptionCode::IllegalFunction => {
-                println!("Unsupported function code");
-            }
-            ModbusExceptionCode::IllegalDataAddress => {
-                println!("Invalid register address");
-            }
-            ModbusExceptionCode::IllegalDataValue => {
-                println!("Invalid data value");
-            }
-            _ => println!("Modbus error: {}", code),
+async fn read_with_error_handling(transport: &mut impl Transport, addr: u8) {
+    match transport.read_holding_registers(addr, 5000, 1).await {
+        Ok(regs) => {
+            println!("Read {} registers", regs.len());
         }
+        Err(RenogyError::ModbusException(code)) => {
+            match code {
+                ModbusExceptionCode::IllegalFunction => {
+                    println!("Unsupported function code");
+                }
+                ModbusExceptionCode::IllegalDataAddress => {
+                    println!("Invalid register address");
+                }
+                ModbusExceptionCode::IllegalDataValue => {
+                    println!("Invalid data value");
+                }
+                _ => println!("Modbus error: {}", code),
+            }
+        }
+        Err(RenogyError::CrcMismatch) => {
+            println!("Communication error - invalid CRC");
+        }
+        Err(e) => println!("Error: {}", e),
     }
-    Err(RenogyError::CrcMismatch) => {
-        println!("Communication error - invalid CRC");
-    }
-    Err(e) => println!("Error: {}", e),
 }
 ```
 
@@ -304,22 +372,7 @@ let voltage = ElectricPotential::new::<volt>(4.2);
 let voltage = 42u16; // What unit? What scale?
 ```
 
-### 3. Handle Device Lock State
-
-```rust
-// For sensitive operations, ensure device is unlocked first
-if sensitive_operation {
-    let unlock_cmd = DeviceCommand::Unlock;
-    // Send unlock command
-
-    // Perform configuration changes
-
-    let lock_cmd = DeviceCommand::Lock;
-    // Re-lock device for safety
-}
-```
-
-### 4. Validate Configuration Values
+### 3. Validate Configuration Values
 
 ```rust
 // PowerSettings automatically validates range
@@ -332,24 +385,26 @@ match PowerSettings::new(150, 90) { // Invalid: >100%
 }
 ```
 
-### 5. Use Appropriate Error Recovery
+### 4. Use Appropriate Error Recovery
 
 ```rust
-// Retry logic for transient errors
-for attempt in 1..=3 {
-    match send_command(&pdu) {
-        Ok(response) => break,
-        Err(RenogyError::ModbusException(ModbusExceptionCode::SlaveDeviceBusy)) => {
-            if attempt < 3 {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                continue;
+use std::time::Duration;
+use tokio::time::sleep;
+
+async fn read_with_retry(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<Vec<u16>> {
+    for attempt in 1..=3 {
+        match transport.read_holding_registers(addr, 5000, 1).await {
+            Ok(regs) => return Ok(regs),
+            Err(RenogyError::ModbusException(ModbusExceptionCode::SlaveDeviceBusy)) => {
+                if attempt < 3 {
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
             }
-        }
-        Err(e) => {
-            println!("Permanent error: {}", e);
-            break;
+            Err(e) => return Err(e),
         }
     }
+    Err(RenogyError::DeviceControlFailed)
 }
 ```
 
@@ -392,15 +447,13 @@ For complete register specifications, refer to the Renogy BMS Modbus Protocol V1
 The library uses a physical-layer neutral design with the `Transport` trait:
 
 ```rust
-use renogy_rs::{Transport, Pdu, Result};
+use renogy_rs::Result;
 
-/// Implement Transport for any physical layer
 pub trait Transport {
-    /// Send a PDU and wait for a response.
-    async fn send_receive(&mut self, pdu: &Pdu) -> Result<Pdu>;
-
-    /// Send a PDU without waiting for a response.
-    async fn send(&mut self, pdu: &Pdu) -> Result<()>;
+    async fn read_holding_registers(&mut self, slave: u8, addr: u16, quantity: u16) -> Result<Vec<u16>>;
+    async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()>;
+    async fn write_multiple_registers(&mut self, slave: u8, addr: u16, values: &[u16]) -> Result<()>;
+    async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>>;
 }
 ```
 
@@ -409,88 +462,36 @@ pub trait Transport {
 - **`Bt2Transport`** - Bluetooth Low Energy via Renogy BT-2 adapter
 - **`SerialTransport`** - Serial/RS-485 via tokio-modbus
 
-## Serial/RS-485 Transport
-
-The library includes a serial transport for direct RS-485 Modbus RTU communication using `tokio-modbus`.
-
-### Opening a Serial Connection
-
-```rust
-use renogy_rs::{SerialTransport, Transport, Pdu, FunctionCode, Register};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Open serial port with default baud rate (9600)
-    let mut transport = SerialTransport::open("/dev/ttyUSB0", 0x01).await?;
-
-    // Or specify baud rate explicitly
-    // let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01).await?;
-
-    // Read cell voltage
-    let register = Register::CellVoltage(1);
-    let mut payload = Vec::new();
-    payload.extend_from_slice(&register.address().to_be_bytes());
-    payload.extend_from_slice(&register.quantity().to_be_bytes());
-    let pdu = Pdu::new(0x01, FunctionCode::ReadHoldingRegisters, payload);
-
-    let response = transport.send_receive(&pdu).await?;
-    println!("Response: {:?}", response);
-
-    Ok(())
-}
-```
-
-### Changing Slave Address
-
-The serial transport can communicate with multiple devices on the same bus:
-
-```rust
-use renogy_rs::{SerialTransport, Transport, Pdu, FunctionCode, Register};
-
-async fn read_from_multiple_devices(transport: &mut SerialTransport) -> renogy_rs::Result<()> {
-    // Read from device 0x01
-    let register = Register::CellVoltage(1);
-    let mut payload = Vec::new();
-    payload.extend_from_slice(&register.address().to_be_bytes());
-    payload.extend_from_slice(&register.quantity().to_be_bytes());
-
-    let pdu = Pdu::new(0x01, FunctionCode::ReadHoldingRegisters, payload.clone());
-    let response1 = transport.send_receive(&pdu).await?;
-
-    // Read from device 0x02 (slave address changes automatically)
-    let pdu = Pdu::new(0x02, FunctionCode::ReadHoldingRegisters, payload);
-    let response2 = transport.send_receive(&pdu).await?;
-
-    // Or change slave explicitly
-    transport.set_slave(0x03);
-
-    Ok(())
-}
-```
-
 ### Implementing Custom Transports
 
 You can implement the `Transport` trait for other physical layers:
 
 ```rust
-use renogy_rs::{Transport, Pdu, Result, RenogyError};
+use renogy_rs::{Result, RenogyError};
 
 struct MyCustomTransport {
     // Your implementation
 }
 
 impl Transport for MyCustomTransport {
-    async fn send_receive(&mut self, pdu: &Pdu) -> Result<Pdu> {
-        let frame = pdu.serialize();
-        // Send frame...
-        // Receive response...
-        Pdu::deserialize(&response_bytes)
+    async fn read_holding_registers(&mut self, slave: u8, addr: u16, quantity: u16) -> Result<Vec<u16>> {
+        // Implement reading...
+        todo!()
     }
 
-    async fn send(&mut self, pdu: &Pdu) -> Result<()> {
-        let frame = pdu.serialize();
-        // Send frame...
-        Ok(())
+    async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()> {
+        // Implement writing...
+        todo!()
+    }
+
+    async fn write_multiple_registers(&mut self, slave: u8, addr: u16, values: &[u16]) -> Result<()> {
+        // Implement writing...
+        todo!()
+    }
+
+    async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>> {
+        // Implement custom function codes...
+        todo!()
     }
 }
 ```

@@ -185,6 +185,17 @@ impl Register {
         }
     }
 
+    /// Parse a value from register data (u16 slice from Transport::read_holding_registers).
+    pub fn parse_registers(&self, registers: &[u16]) -> Value {
+        // Convert registers to big-endian bytes
+        let mut data = Vec::with_capacity(registers.len() * 2);
+        for reg in registers {
+            data.extend_from_slice(&reg.to_be_bytes());
+        }
+        self.parse_value(&data)
+    }
+
+    /// Parse a value from raw byte data.
     pub fn parse_value(&self, data: &[u8]) -> Value {
         match self {
             Register::CellCount => Value::Integer(BigEndian::read_u16(data) as u32),

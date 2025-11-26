@@ -4,7 +4,6 @@
 //! using `tokio-modbus` for the underlying Modbus RTU communication.
 
 use crate::error::{RenogyError, Result};
-use crate::pdu::{FunctionCode, Pdu};
 use crate::transport::Transport;
 use std::io::{Error as IoError, ErrorKind};
 use tokio_modbus::client::{Client, Context, Reader, Writer};
@@ -21,17 +20,13 @@ pub const DEFAULT_BAUD_RATE: u32 = 9600;
 /// # Example
 ///
 /// ```ignore
-/// use renogy_rs::{SerialTransport, Transport, Pdu, FunctionCode, Register};
+/// use renogy_rs::{SerialTransport, Transport, Register};
 ///
-/// let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01)?;
+/// let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01).await?;
 ///
 /// let register = Register::CellVoltage(1);
-/// let mut payload = Vec::new();
-/// payload.extend_from_slice(&register.address().to_be_bytes());
-/// payload.extend_from_slice(&register.quantity().to_be_bytes());
-///
-/// let pdu = Pdu::new(0x01, FunctionCode::ReadHoldingRegisters, payload);
-/// let response = transport.send_receive(&pdu).await?;
+/// let regs = transport.read_holding_registers(0x01, register.address(), register.quantity()).await?;
+/// let value = register.parse_registers(&regs);
 /// ```
 pub struct SerialTransport {
     ctx: Context,
@@ -81,135 +76,63 @@ impl SerialTransport {
 }
 
 impl Transport for SerialTransport {
-    async fn send_receive(&mut self, pdu: &Pdu) -> Result<Pdu> {
-        // Update slave if PDU has different address
-        if pdu.address != self.slave_id {
-            self.set_slave(pdu.address);
+    async fn read_holding_registers(
+        &mut self,
+        slave: u8,
+        addr: u16,
+        quantity: u16,
+    ) -> Result<Vec<u16>> {
+        if slave != self.slave_id {
+            self.set_slave(slave);
         }
 
-        // Convert our Pdu to tokio-modbus Request and call
-        let response = match pdu.function_code {
-            FunctionCode::ReadHoldingRegisters => {
-                if pdu.payload.len() < 4 {
-                    return Err(RenogyError::InvalidData);
-                }
-                let address = u16::from_be_bytes([pdu.payload[0], pdu.payload[1]]);
-                let quantity = u16::from_be_bytes([pdu.payload[2], pdu.payload[3]]);
-
-                let registers = self
-                    .ctx
-                    .read_holding_registers(address, quantity)
-                    .await
-                    .map_err(io_to_renogy_error)?;
-
-                // Convert registers back to bytes (big-endian)
-                let mut response_payload = Vec::with_capacity(1 + registers.len() * 2);
-                response_payload.push((registers.len() * 2) as u8);
-                for reg in registers {
-                    response_payload.extend_from_slice(&reg.to_be_bytes());
-                }
-
-                Pdu::new(
-                    pdu.address,
-                    FunctionCode::ReadHoldingRegisters,
-                    response_payload,
-                )
-            }
-
-            FunctionCode::WriteSingleRegister => {
-                if pdu.payload.len() < 4 {
-                    return Err(RenogyError::InvalidData);
-                }
-                let address = u16::from_be_bytes([pdu.payload[0], pdu.payload[1]]);
-                let value = u16::from_be_bytes([pdu.payload[2], pdu.payload[3]]);
-
-                self.ctx
-                    .write_single_register(address, value)
-                    .await
-                    .map_err(io_to_renogy_error)?;
-
-                // Echo back the request as response
-                Pdu::new(
-                    pdu.address,
-                    FunctionCode::WriteSingleRegister,
-                    pdu.payload.clone(),
-                )
-            }
-
-            FunctionCode::WriteMultipleRegisters => {
-                if pdu.payload.len() < 5 {
-                    return Err(RenogyError::InvalidData);
-                }
-                let address = u16::from_be_bytes([pdu.payload[0], pdu.payload[1]]);
-                let quantity = u16::from_be_bytes([pdu.payload[2], pdu.payload[3]]);
-                let byte_count = pdu.payload[4] as usize;
-
-                if pdu.payload.len() < 5 + byte_count {
-                    return Err(RenogyError::InvalidData);
-                }
-
-                // Parse register values from payload
-                let mut values = Vec::with_capacity(quantity as usize);
-                for i in 0..quantity as usize {
-                    let offset = 5 + i * 2;
-                    values.push(u16::from_be_bytes([
-                        pdu.payload[offset],
-                        pdu.payload[offset + 1],
-                    ]));
-                }
-
-                self.ctx
-                    .write_multiple_registers(address, &values)
-                    .await
-                    .map_err(io_to_renogy_error)?;
-
-                // Response is address + quantity
-                let mut response_payload = Vec::with_capacity(4);
-                response_payload.extend_from_slice(&address.to_be_bytes());
-                response_payload.extend_from_slice(&quantity.to_be_bytes());
-
-                Pdu::new(
-                    pdu.address,
-                    FunctionCode::WriteMultipleRegisters,
-                    response_payload,
-                )
-            }
-
-            // For custom function codes (like RestoreFactoryDefault, ClearHistory),
-            // use tokio-modbus Custom request
-            FunctionCode::RestoreFactoryDefault | FunctionCode::ClearHistory => {
-                use tokio_modbus::prelude::Request;
-
-                let request = Request::Custom(pdu.function_code as u8, pdu.payload.clone());
-                let response = self.ctx.call(request).await.map_err(io_to_renogy_error)?;
-
-                match response {
-                    tokio_modbus::prelude::Response::Custom(fc, data) => {
-                        let function_code =
-                            FunctionCode::from_u8(fc).ok_or(RenogyError::InvalidData)?;
-                        Pdu::new(pdu.address, function_code, data)
-                    }
-                    _ => return Err(RenogyError::InvalidData),
-                }
-            }
-
-            // Error response codes shouldn't be sent as requests
-            FunctionCode::ReadHoldingRegistersError
-            | FunctionCode::WriteSingleRegisterError
-            | FunctionCode::WriteMultipleRegistersError
-            | FunctionCode::RestoreFactoryDefaultError
-            | FunctionCode::ClearHistoryError => {
-                return Err(RenogyError::InvalidData);
-            }
-        };
-
-        Ok(response)
+        self.ctx
+            .read_holding_registers(addr, quantity)
+            .await
+            .map_err(io_to_renogy_error)
     }
 
-    async fn send(&mut self, pdu: &Pdu) -> Result<()> {
-        // For broadcast/no-response operations
-        self.send_receive(pdu).await?;
-        Ok(())
+    async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()> {
+        if slave != self.slave_id {
+            self.set_slave(slave);
+        }
+
+        self.ctx
+            .write_single_register(addr, value)
+            .await
+            .map_err(io_to_renogy_error)
+    }
+
+    async fn write_multiple_registers(
+        &mut self,
+        slave: u8,
+        addr: u16,
+        values: &[u16],
+    ) -> Result<()> {
+        if slave != self.slave_id {
+            self.set_slave(slave);
+        }
+
+        self.ctx
+            .write_multiple_registers(addr, values)
+            .await
+            .map_err(io_to_renogy_error)
+    }
+
+    async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>> {
+        use tokio_modbus::prelude::Request;
+
+        if slave != self.slave_id {
+            self.set_slave(slave);
+        }
+
+        let request = Request::Custom(function_code, data.to_vec());
+        let response = self.ctx.call(request).await.map_err(io_to_renogy_error)?;
+
+        match response {
+            tokio_modbus::prelude::Response::Custom(_fc, response_data) => Ok(response_data),
+            _ => Err(RenogyError::InvalidData),
+        }
     }
 }
 

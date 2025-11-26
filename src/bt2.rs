@@ -1,5 +1,5 @@
 use crate::error::{RenogyError, Result};
-use crate::pdu::Pdu;
+use crate::pdu::{FunctionCode, Pdu};
 use crate::transport::Transport;
 use bluebus::{DeviceProxy, GattCharacteristic1Proxy};
 use std::collections::HashMap;
@@ -217,10 +217,9 @@ impl Bt2Transport {
             .await
             .map_err(|e| RenogyError::Io(std::io::Error::other(e.to_string())))
     }
-}
 
-impl Transport for Bt2Transport {
-    async fn send_receive(&mut self, pdu: &Pdu) -> Result<Pdu> {
+    /// Send a PDU and receive a response (internal helper).
+    async fn send_pdu(&mut self, pdu: &Pdu) -> Result<Pdu> {
         // Serialize the PDU to Modbus RTU frame
         let frame = pdu.serialize();
 
@@ -246,16 +245,87 @@ impl Transport for Bt2Transport {
         // Deserialize the response
         Pdu::deserialize(&response)
     }
+}
 
-    async fn send(&mut self, pdu: &Pdu) -> Result<()> {
-        let frame = pdu.serialize();
-        let mut write_char = self.get_write_proxy().await?;
-        let options: HashMap<String, OwnedValue> = HashMap::new();
-        write_char
-            .write_value(frame, options)
-            .await
-            .map_err(|e| RenogyError::Io(std::io::Error::other(e.to_string())))?;
+impl Transport for Bt2Transport {
+    async fn read_holding_registers(
+        &mut self,
+        slave: u8,
+        addr: u16,
+        quantity: u16,
+    ) -> Result<Vec<u16>> {
+        let mut payload = Vec::with_capacity(4);
+        payload.extend_from_slice(&addr.to_be_bytes());
+        payload.extend_from_slice(&quantity.to_be_bytes());
+
+        let pdu = Pdu::new(slave, FunctionCode::ReadHoldingRegisters, payload);
+        let response = self.send_pdu(&pdu).await?;
+
+        // Parse response: first byte is byte count, then register data
+        if response.payload.is_empty() {
+            return Err(RenogyError::InvalidData);
+        }
+
+        let byte_count = response.payload[0] as usize;
+        if response.payload.len() < 1 + byte_count {
+            return Err(RenogyError::InvalidData);
+        }
+
+        let mut registers = Vec::with_capacity(quantity as usize);
+        for i in 0..quantity as usize {
+            let offset = 1 + i * 2;
+            if offset + 1 < response.payload.len() {
+                registers.push(u16::from_be_bytes([
+                    response.payload[offset],
+                    response.payload[offset + 1],
+                ]));
+            }
+        }
+
+        Ok(registers)
+    }
+
+    async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()> {
+        let mut payload = Vec::with_capacity(4);
+        payload.extend_from_slice(&addr.to_be_bytes());
+        payload.extend_from_slice(&value.to_be_bytes());
+
+        let pdu = Pdu::new(slave, FunctionCode::WriteSingleRegister, payload);
+        let _response = self.send_pdu(&pdu).await?;
+
         Ok(())
+    }
+
+    async fn write_multiple_registers(
+        &mut self,
+        slave: u8,
+        addr: u16,
+        values: &[u16],
+    ) -> Result<()> {
+        let quantity = values.len() as u16;
+        let byte_count = (values.len() * 2) as u8;
+
+        let mut payload = Vec::with_capacity(5 + values.len() * 2);
+        payload.extend_from_slice(&addr.to_be_bytes());
+        payload.extend_from_slice(&quantity.to_be_bytes());
+        payload.push(byte_count);
+        for value in values {
+            payload.extend_from_slice(&value.to_be_bytes());
+        }
+
+        let pdu = Pdu::new(slave, FunctionCode::WriteMultipleRegisters, payload);
+        let _response = self.send_pdu(&pdu).await?;
+
+        Ok(())
+    }
+
+    async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>> {
+        let fc = FunctionCode::from_u8(function_code).ok_or(RenogyError::InvalidData)?;
+
+        let pdu = Pdu::new(slave, fc, data.to_vec());
+        let response = self.send_pdu(&pdu).await?;
+
+        Ok(response.payload)
     }
 }
 

@@ -1,5 +1,5 @@
 use clap::Parser;
-use renogy_rs::{FunctionCode, Pdu, Register, SerialTransport, Transport, Value};
+use renogy_rs::{Register, SerialTransport, Transport, Value};
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
 use uom::si::thermodynamic_temperature::degree_celsius;
@@ -143,22 +143,10 @@ async fn read_register(
     addr: u8,
     register: Register,
 ) -> Result<Value, renogy_rs::RenogyError> {
-    let mut payload = Vec::new();
-    payload.extend_from_slice(&register.address().to_be_bytes());
-    payload.extend_from_slice(&register.quantity().to_be_bytes());
-
-    let pdu = Pdu::new(addr, FunctionCode::ReadHoldingRegisters, payload);
-    let response = transport.send_receive(&pdu).await?;
-
-    let data = if !response.payload.is_empty()
-        && (response.payload[0] as usize) < response.payload.len()
-    {
-        &response.payload[1..]
-    } else {
-        &response.payload
-    };
-
-    Ok(register.parse_value(data))
+    let regs = transport
+        .read_holding_registers(addr, register.address(), register.quantity())
+        .await?;
+    Ok(register.parse_registers(&regs))
 }
 
 fn print_battery_info(addr: u8, info: &BatteryInfo) {
