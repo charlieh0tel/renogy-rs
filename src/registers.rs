@@ -33,7 +33,9 @@ pub enum Register {
     CellTemperatureCount,
     CellTemperature(u8),
     BmsTemperature,
+    EnvironmentTemperatureCount,
     EnvironmentTemperature(u8),
+    HeaterTemperatureCount,
     HeaterTemperature(u8),
     Current,
     ModuleVoltage,
@@ -102,7 +104,9 @@ impl Register {
             Register::CellTemperatureCount => 5017,
             Register::CellTemperature(n) => 5017 + *n as u16,
             Register::BmsTemperature => 5035,
+            Register::EnvironmentTemperatureCount => 5036,
             Register::EnvironmentTemperature(n) => 5036 + *n as u16,
+            Register::HeaterTemperatureCount => 5039,
             Register::HeaterTemperature(n) => 5039 + *n as u16,
             Register::Current => 5042,
             Register::ModuleVoltage => 5043,
@@ -198,11 +202,15 @@ impl Register {
                     BigEndian::read_u16(data) as f32 * 0.1,
                 ))
             }
+            Register::EnvironmentTemperatureCount => {
+                Value::Integer(BigEndian::read_u16(data) as u32)
+            }
             Register::EnvironmentTemperature(_) => {
                 Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
                     BigEndian::read_u16(data) as f32 * 0.1,
                 ))
             }
+            Register::HeaterTemperatureCount => Value::Integer(BigEndian::read_u16(data) as u32),
             Register::HeaterTemperature(_) => {
                 Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
                     BigEndian::read_u16(data) as f32 * 0.1,
