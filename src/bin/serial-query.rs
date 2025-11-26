@@ -1,51 +1,51 @@
+use clap::Parser;
 use renogy_rs::{FunctionCode, Pdu, Register, SerialTransport, Transport, Value};
-use std::env;
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
-const DEFAULT_ADDRESSES: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
+#[derive(Parser)]
+#[command(name = "serial-query")]
+#[command(about = "Query Renogy BMS batteries via serial/RS-485")]
+struct Args {
+    /// Serial port path (e.g., /dev/ttyUSB0 or COM3)
+    #[arg(short, long)]
+    port: String,
+
+    /// Baud rate
+    #[arg(short = 'r', long, default_value_t = 9600)]
+    baud_rate: u32,
+
+    /// BMS addresses to scan (hex values like 0x01 or decimal)
+    #[arg(short, long, value_parser = parse_address, default_values_t = vec![0x01, 0x02, 0x03, 0x04])]
+    bms_addresses: Vec<u8>,
+}
+
+fn parse_address(s: &str) -> Result<u8, String> {
+    let s = s.trim();
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        u8::from_str_radix(hex, 16).map_err(|e| e.to_string())
+    } else {
+        s.parse()
+            .map_err(|e: std::num::ParseIntError| e.to_string())
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    if args.len() < 2 {
-        eprintln!("Usage: serial-query <SERIAL_PORT> [BAUD_RATE]");
-        eprintln!("  Example: serial-query /dev/ttyUSB0");
-        eprintln!("  Example: serial-query /dev/ttyUSB0 9600");
-        eprintln!();
-        eprintln!("Environment variables:");
-        eprintln!("  BMS_ADDRESSES - comma-separated list of addresses to scan (default: 1,2,3,4)");
-        std::process::exit(1);
-    }
-
-    let port = &args[1];
-    let baud_rate: u32 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(9600);
-
-    let addresses: Vec<u8> = env::var("BMS_ADDRESSES")
-        .ok()
-        .map(|s| {
-            s.split(',')
-                .filter_map(|addr| {
-                    let addr = addr.trim();
-                    if let Some(hex) = addr.strip_prefix("0x") {
-                        u8::from_str_radix(hex, 16).ok()
-                    } else {
-                        addr.parse().ok()
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_else(|| DEFAULT_ADDRESSES.to_vec());
-
-    println!("Opening {} at {} baud...", port, baud_rate);
-    let mut transport = SerialTransport::new(port, baud_rate, addresses[0]).await?;
+    println!("Opening {} at {} baud...", args.port, args.baud_rate);
+    let mut transport =
+        SerialTransport::new(&args.port, args.baud_rate, args.bms_addresses[0]).await?;
     println!("Connected!\n");
 
-    println!("Scanning for batteries at addresses: {:?}\n", addresses);
+    println!(
+        "Scanning for batteries at addresses: {:02X?}\n",
+        args.bms_addresses
+    );
 
-    for addr in addresses {
+    for addr in args.bms_addresses {
         if let Some(info) = query_battery(&mut transport, addr).await {
             print_battery_info(addr, &info);
         }
