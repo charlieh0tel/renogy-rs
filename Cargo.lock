@@ -864,6 +864,7 @@ dependencies = [
  "byteorder",
  "clap",
  "crc",
+ "futures",
  "tokio",
  "tokio-modbus",
  "tokio-serial",

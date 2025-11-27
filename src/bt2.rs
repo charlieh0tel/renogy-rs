@@ -1,7 +1,8 @@
 use crate::error::{RenogyError, Result};
 use crate::pdu::{FunctionCode, Pdu};
 use crate::transport::Transport;
-use bluebus::{DeviceProxy, GattCharacteristic1Proxy};
+use bluebus::{DeviceProxy, GattCharacteristic1Proxy, ObjectManagerProxy};
+use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -77,37 +78,38 @@ impl Bt2Transport {
         connection: &Connection,
         device_path: &str,
     ) -> Result<(String, String)> {
+        let object_manager = ObjectManagerProxy::new(connection).await?;
+        let objects = object_manager.get_managed_objects().await?;
+
         let mut write_path = None;
         let mut notify_path = None;
 
-        for service_idx in 0..10 {
-            for char_idx in 0..20 {
-                let path = format!("{device_path}/service{service_idx:04x}/char{char_idx:04x}");
+        for (path, interfaces) in objects {
+            let path_str = path.as_str();
+            if !path_str.starts_with(device_path) {
+                continue;
+            }
 
-                let Some(proxy) = GattCharacteristic1Proxy::builder(connection)
-                    .path(path.as_str())
-                    .ok()
-                    .map(zbus::proxy::Builder::build)
-                else {
-                    continue;
-                };
-                let Ok(proxy) = proxy.await else {
-                    continue;
-                };
+            let Some(char_props) = interfaces.get("org.bluez.GattCharacteristic1") else {
+                continue;
+            };
 
-                let Ok(uuid) = proxy.uuid().await else {
-                    continue;
-                };
+            let Some(uuid_value) = char_props.get("UUID") else {
+                continue;
+            };
 
-                match uuid.to_lowercase().as_str() {
-                    BT2_WRITE_CHAR_UUID => write_path = Some(path),
-                    BT2_NOTIFY_CHAR_UUID => notify_path = Some(path),
-                    _ => {}
-                }
+            let Ok(uuid) = <String as TryFrom<_>>::try_from(uuid_value.clone()) else {
+                continue;
+            };
 
-                if let (Some(w), Some(n)) = (&write_path, &notify_path) {
-                    return Ok((w.clone(), n.clone()));
-                }
+            match uuid.to_lowercase().as_str() {
+                BT2_WRITE_CHAR_UUID => write_path = Some(path_str.to_string()),
+                BT2_NOTIFY_CHAR_UUID => notify_path = Some(path_str.to_string()),
+                _ => {}
+            }
+
+            if write_path.is_some() && notify_path.is_some() {
+                break;
             }
         }
 
@@ -122,9 +124,9 @@ impl Bt2Transport {
         tx: mpsc::Sender<Vec<u8>>,
     ) {
         tokio::spawn(async move {
-            let Some(proxy) = GattCharacteristic1Proxy::builder(&connection)
-                .path(notify_path.as_str())
-                .ok()
+            let Ok(proxy) = GattCharacteristic1Proxy::builder(&connection)
+                .destination("org.bluez")
+                .and_then(|b| b.path(notify_path.as_str()))
                 .map(zbus::proxy::Builder::build)
             else {
                 return;
@@ -137,9 +139,10 @@ impl Bt2Transport {
                 return;
             }
 
-            loop {
-                tokio::time::sleep(Duration::from_millis(10)).await;
-                if let Ok(value) = char.value().await
+            let mut value_changed = char.receive_value_changed().await;
+
+            while let Some(signal) = value_changed.next().await {
+                if let Ok(value) = signal.get().await
                     && let Some(data) = value.as_ref()
                     && !data.is_empty()
                 {
@@ -155,7 +158,8 @@ impl Bt2Transport {
         while self.notify_rx.try_recv().is_ok() {}
 
         let mut write_char = GattCharacteristic1Proxy::builder(&self.connection)
-            .path(self.write_char_path.as_str())?
+            .destination("org.bluez")
+            .and_then(|b| b.path(self.write_char_path.as_str()))?
             .build()
             .await?;
 
