@@ -17,3 +17,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Rust version**: 1.89.0 (specified in `rust-toolchain.toml`)
 - **Edition**: 2024
 - **Key features**: async/await with tokio, egui for GUI
+- never add co-authored lines
