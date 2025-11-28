@@ -12,10 +12,27 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
         "  Capacity: {:.1} / {:.1} Ah ({:.1}%)",
         info.remaining_capacity, info.total_capacity, info.soc_percent
     );
-    println!(
-        "  Cycles: {}    BMS Temp: {:.1} °C",
-        info.cycle_count, info.bms_temp
-    );
+    if !info.cell_temperatures.is_empty() {
+        let min_temp = info
+            .cell_temperatures
+            .iter()
+            .cloned()
+            .fold(f32::INFINITY, f32::min);
+        let max_temp = info
+            .cell_temperatures
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max);
+        println!(
+            "  Cycles: {}    Temp: {:.1}-{:.1} °C ({} sensors)",
+            info.cycle_count,
+            min_temp,
+            max_temp,
+            info.cell_temperatures.len()
+        );
+    } else {
+        println!("  Cycles: {}", info.cycle_count);
+    }
     println!();
     println!("  Cell Voltages ({} cells):", info.cell_count);
     for (i, voltage) in info.cell_voltages.iter().enumerate() {

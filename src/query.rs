@@ -9,13 +9,13 @@ pub struct BatteryInfo {
     pub serial: String,
     pub cell_count: u32,
     pub cell_voltages: Vec<f32>,
+    pub cell_temperatures: Vec<f32>,
     pub module_voltage: f32,
     pub current: f32,
     pub remaining_capacity: f32,
     pub total_capacity: f32,
     pub soc_percent: f32,
     pub cycle_count: u32,
-    pub bms_temp: f32,
 }
 
 pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<BatteryInfo> {
@@ -70,22 +70,32 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
         _ => 0,
     };
 
-    let bms_temp = match read_register(transport, addr, Register::BmsTemperature).await {
-        Ok(Value::ThermodynamicTemperature(t)) => t.get::<degree_celsius>(),
-        _ => 0.0,
+    let cell_temp_count = match read_register(transport, addr, Register::CellTemperatureCount).await
+    {
+        Ok(Value::Integer(n)) => n,
+        _ => 0,
     };
+
+    let mut cell_temperatures = Vec::new();
+    for i in 1..=cell_temp_count.min(16) {
+        if let Ok(Value::ThermodynamicTemperature(t)) =
+            read_register(transport, addr, Register::CellTemperature(i as u8)).await
+        {
+            cell_temperatures.push(t.get::<degree_celsius>());
+        }
+    }
 
     Some(BatteryInfo {
         serial,
         cell_count,
         cell_voltages,
+        cell_temperatures,
         module_voltage,
         current,
         remaining_capacity,
         total_capacity,
         soc_percent,
         cycle_count,
-        bms_temp,
     })
 }
 
