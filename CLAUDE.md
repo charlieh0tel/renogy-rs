@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. **Comments**: Do not add trivial, obvious, or redundant comments. Only include comments that explain complex logic, business rules, or non-obvious behavior. Avoid comments like `// Create connection`, `// Set to true`, or `// 30 seconds` that simply restate what the code does.
 5. **Commit Messages**: Do not add Gemini attribution or co-authorship to commit messages. Keep commit messages clean and professional.
 6. **Code Consistency**: Be consistent with existing code patterns, naming conventions, and architectural decisions in the codebase.
+7. **Git Add**: Never use `git add -A`. Always add files explicitly by name and only those files that you edited.
 
 ## Rust Configuration
 
