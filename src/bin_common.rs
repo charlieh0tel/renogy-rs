@@ -4,7 +4,7 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
     println!("═══════════════════════════════════════════════════════════");
     println!("Battery 0x{:02X}", addr);
     println!("═══════════════════════════════════════════════════════════");
-    println!("  Serial: {}  Name: {}", info.serial, info.battery_name);
+    println!("  Model: {}  Serial: {}", info.model, info.serial);
     println!(
         "  Manufacturer: {}  Version: {}",
         info.manufacturer, info.software_version
