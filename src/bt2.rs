@@ -6,6 +6,7 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::task::AbortHandle;
 use tokio::time::timeout;
 use zbus::Connection;
 
@@ -21,6 +22,7 @@ pub struct Bt2Transport {
     write_char_path: String,
     notify_rx: mpsc::Receiver<Vec<u8>>,
     timeout: Duration,
+    listener_handle: AbortHandle,
 }
 
 impl Bt2Transport {
@@ -41,7 +43,8 @@ impl Bt2Transport {
             Self::find_characteristics(&connection, device_path).await?;
 
         let (tx, notify_rx) = mpsc::channel(16);
-        Self::spawn_notification_listener(Arc::clone(&connection), notify_char_path, tx);
+        let listener_handle =
+            Self::spawn_notification_listener(Arc::clone(&connection), notify_char_path, tx);
 
         tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -50,6 +53,7 @@ impl Bt2Transport {
             write_char_path,
             notify_rx,
             timeout: DEFAULT_TIMEOUT,
+            listener_handle,
         })
     }
 
@@ -122,7 +126,7 @@ impl Bt2Transport {
         connection: Arc<Connection>,
         notify_path: String,
         tx: mpsc::Sender<Vec<u8>>,
-    ) {
+    ) -> AbortHandle {
         tokio::spawn(async move {
             let Ok(proxy) = GattCharacteristic1Proxy::builder(&connection)
                 .destination("org.bluez")
@@ -149,9 +153,18 @@ impl Bt2Transport {
                     let _ = tx.send(data.clone()).await;
                 }
             }
-        });
+        })
+        .abort_handle()
     }
+}
 
+impl Drop for Bt2Transport {
+    fn drop(&mut self) {
+        self.listener_handle.abort();
+    }
+}
+
+impl Bt2Transport {
     async fn send_pdu(&mut self, pdu: &Pdu) -> Result<Pdu> {
         let frame = pdu.serialize();
 
