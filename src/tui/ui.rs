@@ -32,7 +32,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(7),
+            Constraint::Length(6),
             Constraint::Min(14),
             Constraint::Length(1),
         ])
@@ -79,10 +79,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
         Span::styled(temp_str, Style::default().fg(Color::Cyan)),
     ]));
 
-    // Line 2: Empty for spacing
-    lines.push(Line::from(""));
-
-    // Line 3: SOC bar
+    // SOC bar
     lines.push(Line::from(vec![
         Span::styled("SOC: ", LABEL),
         Span::styled(
