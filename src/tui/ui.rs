@@ -1,4 +1,5 @@
 use crate::tui::app::{App, Tab};
+use chrono::{DateTime, Local, TimeZone};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -469,27 +470,27 @@ fn format_time_axis_labels(start: u64, end: u64) -> Vec<Span<'static>> {
     let duration = end.saturating_sub(start);
     let mid = start + duration / 2;
 
+    let include_date = duration > 12 * 3600 || spans_midnight(start, end);
+
     vec![
-        Span::raw(format_timestamp(start)),
-        Span::raw(format_timestamp(mid)),
-        Span::raw(format_timestamp(end)),
+        Span::raw(format_timestamp(start, include_date)),
+        Span::raw(format_timestamp(mid, include_date)),
+        Span::raw(format_timestamp(end, include_date)),
     ]
 }
 
-fn format_timestamp(ts: u64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+fn spans_midnight(start: u64, end: u64) -> bool {
+    let start_dt: DateTime<Local> = Local.timestamp_opt(start as i64, 0).unwrap();
+    let end_dt: DateTime<Local> = Local.timestamp_opt(end as i64, 0).unwrap();
+    start_dt.date_naive() != end_dt.date_naive()
+}
 
-    let ago = now.saturating_sub(ts);
-
-    if ago < 60 {
-        format!("-{}s", ago)
-    } else if ago < 3600 {
-        format!("-{}m", ago / 60)
+fn format_timestamp(ts: u64, include_date: bool) -> String {
+    let dt: DateTime<Local> = Local.timestamp_opt(ts as i64, 0).unwrap();
+    if include_date {
+        dt.format("%b %d %H:%M").to_string()
     } else {
-        format!("-{}h{}m", ago / 3600, (ago % 3600) / 60)
+        dt.format("%H:%M").to_string()
     }
 }
 
