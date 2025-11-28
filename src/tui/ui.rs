@@ -159,7 +159,6 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
         Span::styled("SN:", Style::default().fg(Color::DarkGray)),
         Span::raw(&battery.serial),
         Span::raw("  "),
-        Span::styled("v", Style::default().fg(Color::DarkGray)),
         Span::raw(&battery.software_version),
     ]));
 
@@ -209,7 +208,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
         Span::styled(bar, Style::default().fg(soc_color(soc))),
     ]));
 
-    // Temperatures (put near top so they don't scroll off)
+    // Temperatures
     if !battery.cell_temperatures.is_empty() {
         let min_t = battery
             .cell_temperatures
@@ -232,6 +231,11 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
+    } else {
+        lines.push(Line::from(Span::styled(
+            "Temp: (no data)",
+            Style::default().fg(Color::DarkGray),
+        )));
     }
 
     // Cell voltages
