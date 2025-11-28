@@ -165,6 +165,7 @@ async fn discover_batteries(
             found.push(addr);
         } else {
             eprintln!("-");
+            break;
         }
     }
 
