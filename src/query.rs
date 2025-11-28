@@ -7,6 +7,7 @@ use uom::si::thermodynamic_temperature::degree_celsius;
 
 pub struct BatteryInfo {
     pub serial: String,
+    pub unique_id: Option<u32>,
     pub cell_count: u32,
     pub cell_voltages: Vec<f32>,
     pub cell_temperatures: Vec<f32>,
@@ -22,6 +23,11 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
     let serial = match read_register(transport, addr, Register::SnNumber).await {
         Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
         _ => return None,
+    };
+
+    let unique_id = match read_register(transport, addr, Register::UniqueIdentificationCode).await {
+        Ok(Value::Integer(id)) if id != 0xFFFF_FFFF => Some(id),
+        _ => None,
     };
 
     let cell_count = match read_register(transport, addr, Register::CellCount).await {
@@ -87,6 +93,7 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
 
     Some(BatteryInfo {
         serial,
+        unique_id,
         cell_count,
         cell_voltages,
         cell_temperatures,

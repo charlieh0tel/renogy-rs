@@ -2,7 +2,14 @@ use renogy_rs::BatteryInfo;
 
 pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
     println!("═══════════════════════════════════════════════════════════");
-    println!("Battery 0x{:02X} - {}", addr, info.serial);
+    if let Some(uid) = info.unique_id {
+        println!(
+            "Battery 0x{:02X} - {} (UID: {:08X})",
+            addr, info.serial, uid
+        );
+    } else {
+        println!("Battery 0x{:02X} - {}", addr, info.serial);
+    }
     println!("═══════════════════════════════════════════════════════════");
     println!(
         "  Module Voltage: {:.1} V    Current: {:+.2} A",
