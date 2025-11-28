@@ -11,8 +11,7 @@ pub struct DataPoint {
     pub timestamp_secs: u64,
     pub current: f32,
     pub soc: f32,
-    pub temp_min: Option<f32>,
-    pub temp_max: Option<f32>,
+    pub temp_avg: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -41,12 +40,17 @@ impl History {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
+        let temp_avg = match (rollup.min_temperature, rollup.max_temperature) {
+            (Some(min), Some(max)) => Some((min + max) / 2.0),
+            (Some(t), None) | (None, Some(t)) => Some(t),
+            (None, None) => None,
+        };
+
         let point = DataPoint {
             timestamp_secs,
             current: rollup.total_current,
             soc: rollup.average_soc,
-            temp_min: rollup.min_temperature,
-            temp_max: rollup.max_temperature,
+            temp_avg,
         };
 
         if self.data.len() >= self.max_points {

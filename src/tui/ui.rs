@@ -375,17 +375,11 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
     let view_end = now_secs.saturating_sub(scroll_offset);
     let view_start = view_end.saturating_sub(window_secs);
 
-    let (current_data, soc_data, temp_min_data, temp_max_data) =
-        prepare_chart_data(app, view_start, view_end);
+    let (current_data, soc_data, temp_data) = prepare_chart_data(app, view_start, view_end);
 
     let current_bounds = calculate_y_bounds(&current_data, None);
     let soc_bounds = [0.0, 100.0];
-    let all_temps: Vec<(f64, f64)> = temp_min_data
-        .iter()
-        .chain(temp_max_data.iter())
-        .copied()
-        .collect();
-    let temp_bounds = calculate_y_bounds(&all_temps, None);
+    let temp_bounds = calculate_y_bounds(&temp_data, None);
 
     let y_label_width = [current_bounds, soc_bounds, temp_bounds]
         .iter()
@@ -420,13 +414,15 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         y_label_width,
     );
 
-    draw_temp_chart(
+    draw_single_chart(
         frame,
         chunks[2],
-        &temp_min_data,
-        &temp_max_data,
+        "Temperature (°C)",
+        "",
+        &temp_data,
         view_start,
         view_end,
+        Color::Cyan,
         temp_bounds,
         y_label_width,
     );
@@ -436,32 +432,23 @@ fn prepare_chart_data(
     app: &App,
     view_start: u64,
     view_end: u64,
-) -> (
-    ChartDataPoints,
-    ChartDataPoints,
-    ChartDataPoints,
-    ChartDataPoints,
-) {
+) -> (ChartDataPoints, ChartDataPoints, ChartDataPoints) {
     let mut current_data = Vec::new();
     let mut soc_data = Vec::new();
-    let mut temp_min_data = Vec::new();
-    let mut temp_max_data = Vec::new();
+    let mut temp_data = Vec::new();
 
     for point in app.history.iter() {
         if point.timestamp_secs >= view_start && point.timestamp_secs <= view_end {
             let x = point.timestamp_secs as f64;
             current_data.push((x, point.current as f64));
             soc_data.push((x, point.soc as f64));
-            if let Some(t) = point.temp_min {
-                temp_min_data.push((x, t as f64));
-            }
-            if let Some(t) = point.temp_max {
-                temp_max_data.push((x, t as f64));
+            if let Some(t) = point.temp_avg {
+                temp_data.push((x, t as f64));
             }
         }
     }
 
-    (current_data, soc_data, temp_min_data, temp_max_data)
+    (current_data, soc_data, temp_data)
 }
 
 fn calculate_y_bounds(data: &[(f64, f64)], fixed_bounds: Option<(f64, f64)>) -> [f64; 2] {
@@ -566,54 +553,4 @@ fn format_y_labels(bounds: [f64; 2], width: usize) -> Vec<Span<'static>> {
         Span::raw(format!("{:>width$.1}", bounds[0])),
         Span::raw(format!("{:>width$.1}", bounds[1])),
     ]
-}
-
-#[allow(clippy::too_many_arguments)]
-fn draw_temp_chart(
-    frame: &mut Frame,
-    area: Rect,
-    temp_min_data: &[(f64, f64)],
-    temp_max_data: &[(f64, f64)],
-    view_start: u64,
-    view_end: u64,
-    y_bounds: [f64; 2],
-    y_label_width: usize,
-) {
-    let x_labels = format_time_axis_labels(view_start, view_end);
-
-    let datasets = vec![
-        Dataset::default()
-            .name("min")
-            .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Cyan))
-            .data(temp_min_data),
-        Dataset::default()
-            .name("max")
-            .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(Color::Red))
-            .data(temp_max_data),
-    ];
-
-    let chart = Chart::new(datasets)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Temperature (°C) [min/max] "),
-        )
-        .x_axis(
-            Axis::default()
-                .style(LABEL)
-                .bounds([view_start as f64, view_end as f64])
-                .labels(x_labels),
-        )
-        .y_axis(
-            Axis::default()
-                .style(LABEL)
-                .bounds(y_bounds)
-                .labels(format_y_labels(y_bounds, y_label_width)),
-        );
-
-    frame.render_widget(chart, area);
 }
