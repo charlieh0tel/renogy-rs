@@ -1056,6 +1056,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ratatui-macros"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fef540f80dbe8a0773266fa6077788ceb65ef624cdbf36e131aaf90b4a52df4"
+dependencies = [
+ "ratatui",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1076,6 +1085,7 @@ dependencies = [
  "crossterm",
  "futures",
  "ratatui",
+ "ratatui-macros",
  "tokio",
  "tokio-modbus",
  "tokio-serial",

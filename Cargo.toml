@@ -16,5 +16,6 @@ zbus = "5.12.0"
 tokio-serial = "5.4.5"
 clap = { version = "4.5.53", features = ["derive"] }
 ratatui = "0.29"
+ratatui-macros = "0.6"
 crossterm = "0.28"
 
