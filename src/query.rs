@@ -7,7 +7,9 @@ use uom::si::thermodynamic_temperature::degree_celsius;
 
 pub struct BatteryInfo {
     pub serial: String,
-    pub unique_id: Option<u32>,
+    pub battery_name: String,
+    pub software_version: String,
+    pub manufacturer: String,
     pub cell_count: u32,
     pub cell_voltages: Vec<f32>,
     pub cell_temperatures: Vec<f32>,
@@ -25,9 +27,19 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
         _ => return None,
     };
 
-    let unique_id = match read_register(transport, addr, Register::UniqueIdentificationCode).await {
-        Ok(Value::Integer(id)) if id != 0xFFFF_FFFF => Some(id),
-        _ => None,
+    let battery_name = match read_register(transport, addr, Register::BatteryName).await {
+        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
+        _ => String::new(),
+    };
+
+    let software_version = match read_register(transport, addr, Register::SoftwareVersion).await {
+        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
+        _ => String::new(),
+    };
+
+    let manufacturer = match read_register(transport, addr, Register::ManufacturerName).await {
+        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
+        _ => String::new(),
     };
 
     let cell_count = match read_register(transport, addr, Register::CellCount).await {
@@ -93,7 +105,9 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
 
     Some(BatteryInfo {
         serial,
-        unique_id,
+        battery_name,
+        software_version,
+        manufacturer,
         cell_count,
         cell_voltages,
         cell_temperatures,
