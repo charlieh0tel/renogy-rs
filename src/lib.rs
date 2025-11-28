@@ -7,6 +7,7 @@ pub mod query;
 pub mod registers;
 pub mod serial;
 pub mod transport;
+pub mod tui;
 
 pub use alarm::*;
 pub use bt2::{BT2_NAME_PREFIX, Bt2Transport, discover_bt2_devices};

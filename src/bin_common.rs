@@ -1,5 +1,6 @@
 use renogy_rs::BatteryInfo;
 
+#[allow(dead_code)]
 pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
     println!("═══════════════════════════════════════════════════════════");
     println!("Battery 0x{:02X}", addr);
