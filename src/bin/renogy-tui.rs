@@ -10,7 +10,7 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use renogy_rs::{
     Bt2Transport, SerialTransport, discover_bt2_devices, query_battery,
-    tui::{App, Event, EventHandler, draw},
+    tui::{App, Event, EventHandler, Tab, draw},
 };
 use std::io::stdout;
 use std::time::{Duration, Instant};
@@ -232,8 +232,37 @@ async fn run_event_loop(
                 Event::Key(key) => {
                     use crossterm::event::KeyCode;
                     match key.code {
-                        KeyCode::Up | KeyCode::Char('k') => app.select_previous(),
-                        KeyCode::Down | KeyCode::Char('j') => app.select_next(),
+                        KeyCode::Tab => app.next_tab(),
+                        KeyCode::Up | KeyCode::Char('k') if app.active_tab == Tab::Overview => {
+                            app.select_previous()
+                        }
+                        KeyCode::Down | KeyCode::Char('j') if app.active_tab == Tab::Overview => {
+                            app.select_next()
+                        }
+                        KeyCode::Char('+') | KeyCode::Char('=')
+                            if app.active_tab == Tab::Graphs =>
+                        {
+                            app.graph_view.zoom_in()
+                        }
+                        KeyCode::Char('-') if app.active_tab == Tab::Graphs => {
+                            app.graph_view.zoom_out()
+                        }
+                        KeyCode::Left | KeyCode::Char('h') if app.active_tab == Tab::Graphs => {
+                            let step = app.graph_view.zoom_window_secs() / 4;
+                            let max = app.history_duration();
+                            app.graph_view.scroll_back(step, max);
+                        }
+                        KeyCode::Right | KeyCode::Char('l') if app.active_tab == Tab::Graphs => {
+                            let step = app.graph_view.zoom_window_secs() / 4;
+                            app.graph_view.scroll_forward(step);
+                        }
+                        KeyCode::Home | KeyCode::Char('g') if app.active_tab == Tab::Graphs => {
+                            app.graph_view.jump_to_newest();
+                        }
+                        KeyCode::End | KeyCode::Char('G') if app.active_tab == Tab::Graphs => {
+                            let duration = app.history_duration();
+                            app.graph_view.jump_to_oldest(duration);
+                        }
                         _ => {}
                     }
                 }
@@ -254,5 +283,6 @@ async fn refresh_batteries(app: &mut App, transport: &mut AnyTransport, addresse
         app.update_battery(addr, info);
     }
 
+    app.record_history();
     app.refreshing = false;
 }

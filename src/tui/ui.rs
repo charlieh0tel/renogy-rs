@@ -1,12 +1,16 @@
-use crate::tui::app::App;
+use crate::tui::app::{App, Tab};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
+    symbols::Marker,
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph, Tabs},
 };
 use ratatui_macros::{line, span};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+type ChartDataPoints = Vec<(f64, f64)>;
 
 const LABEL: Style = Style::new().add_modifier(Modifier::DIM);
 const BOLD: Style = Style::new().add_modifier(Modifier::BOLD);
@@ -48,15 +52,50 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(6),
+            Constraint::Length(1),
             Constraint::Min(14),
             Constraint::Length(1),
         ])
         .split(frame.area());
 
+    draw_tab_bar(frame, app, chunks[0]);
+
+    match app.active_tab {
+        Tab::Overview => draw_overview(frame, app, chunks[1]),
+        Tab::Graphs => draw_graphs(frame, app, chunks[1]),
+    }
+
+    draw_status_bar(frame, app, chunks[2]);
+}
+
+fn draw_tab_bar(frame: &mut Frame, app: &App, area: Rect) {
+    let titles = vec!["Overview", "Graphs"];
+    let selected = match app.active_tab {
+        Tab::Overview => 0,
+        Tab::Graphs => 1,
+    };
+
+    let tabs = Tabs::new(titles)
+        .select(selected)
+        .style(LABEL)
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .divider("|");
+
+    frame.render_widget(tabs, area);
+}
+
+fn draw_overview(frame: &mut Frame, app: &mut App, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(6), Constraint::Min(8)])
+        .split(area);
+
     draw_rollup(frame, app, chunks[0]);
     draw_main_area(frame, app, chunks[1]);
-    draw_status_bar(frame, app, chunks[2]);
 }
 
 fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
@@ -282,16 +321,270 @@ fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
         span!(Style::default().fg(Color::Green); "OK")
     };
 
-    let line = line![
-        span!(LABEL; " q"),
-        ":quit ",
-        span!(LABEL; "jk"),
-        ":sel ",
-        span!(LABEL; "r"),
-        ":refresh | ",
-        status,
-        format!(" | {}", last_update),
+    let tab_hints = match app.active_tab {
+        Tab::Overview => line![
+            span!(LABEL; " q"),
+            ":quit ",
+            span!(LABEL; "Tab"),
+            ":graphs ",
+            span!(LABEL; "jk"),
+            ":sel ",
+            span!(LABEL; "r"),
+            ":refresh | ",
+            status,
+            format!(" | {}", last_update),
+        ],
+        Tab::Graphs => line![
+            span!(LABEL; " q"),
+            ":quit ",
+            span!(LABEL; "Tab"),
+            ":overview ",
+            span!(LABEL; "+-"),
+            ":zoom ",
+            span!(LABEL; "hl"),
+            ":scroll ",
+            span!(LABEL; "r"),
+            ":refresh | ",
+            status,
+            format!(" | {} | {} pts", last_update, app.history.len()),
+        ],
+    };
+
+    frame.render_widget(Paragraph::new(tab_hints), area);
+}
+
+fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+        ])
+        .split(area);
+
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let window_secs = app.graph_view.zoom_window_secs();
+    let scroll_offset = app.graph_view.scroll_offset_secs;
+
+    let view_end = now_secs.saturating_sub(scroll_offset);
+    let view_start = view_end.saturating_sub(window_secs);
+
+    let (current_data, soc_data, temp_min_data, temp_max_data) =
+        prepare_chart_data(app, view_start, view_end);
+
+    draw_single_chart(
+        frame,
+        chunks[0],
+        "Current (A)",
+        app.graph_view.zoom_label(),
+        &current_data,
+        view_start,
+        view_end,
+        Color::Green,
+        None,
+    );
+
+    draw_single_chart(
+        frame,
+        chunks[1],
+        "SOC (%)",
+        "",
+        &soc_data,
+        view_start,
+        view_end,
+        Color::Yellow,
+        Some((0.0, 100.0)),
+    );
+
+    draw_temp_chart(
+        frame,
+        chunks[2],
+        &temp_min_data,
+        &temp_max_data,
+        view_start,
+        view_end,
+    );
+}
+
+fn prepare_chart_data(
+    app: &App,
+    view_start: u64,
+    view_end: u64,
+) -> (
+    ChartDataPoints,
+    ChartDataPoints,
+    ChartDataPoints,
+    ChartDataPoints,
+) {
+    let mut current_data = Vec::new();
+    let mut soc_data = Vec::new();
+    let mut temp_min_data = Vec::new();
+    let mut temp_max_data = Vec::new();
+
+    for point in app.history.iter() {
+        if point.timestamp_secs >= view_start && point.timestamp_secs <= view_end {
+            let x = point.timestamp_secs as f64;
+            current_data.push((x, point.current as f64));
+            soc_data.push((x, point.soc as f64));
+            if let Some(t) = point.temp_min {
+                temp_min_data.push((x, t as f64));
+            }
+            if let Some(t) = point.temp_max {
+                temp_max_data.push((x, t as f64));
+            }
+        }
+    }
+
+    (current_data, soc_data, temp_min_data, temp_max_data)
+}
+
+fn calculate_y_bounds(data: &[(f64, f64)], fixed_bounds: Option<(f64, f64)>) -> [f64; 2] {
+    if let Some((min, max)) = fixed_bounds {
+        return [min, max];
+    }
+
+    if data.is_empty() {
+        return [0.0, 1.0];
+    }
+
+    let min_y = data.iter().map(|(_, y)| *y).fold(f64::MAX, f64::min);
+    let max_y = data.iter().map(|(_, y)| *y).fold(f64::MIN, f64::max);
+
+    let range = max_y - min_y;
+    let padding = if range.abs() < 0.001 {
+        1.0
+    } else {
+        range * 0.1
+    };
+
+    [min_y - padding, max_y + padding]
+}
+
+fn format_time_axis_labels(start: u64, end: u64) -> Vec<Span<'static>> {
+    let duration = end.saturating_sub(start);
+    let mid = start + duration / 2;
+
+    vec![
+        Span::raw(format_timestamp(start)),
+        Span::raw(format_timestamp(mid)),
+        Span::raw(format_timestamp(end)),
+    ]
+}
+
+fn format_timestamp(ts: u64) -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let ago = now.saturating_sub(ts);
+
+    if ago < 60 {
+        format!("-{}s", ago)
+    } else if ago < 3600 {
+        format!("-{}m", ago / 60)
+    } else {
+        format!("-{}h{}m", ago / 3600, (ago % 3600) / 60)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_single_chart(
+    frame: &mut Frame,
+    area: Rect,
+    title: &str,
+    zoom_label: &str,
+    data: &[(f64, f64)],
+    view_start: u64,
+    view_end: u64,
+    color: Color,
+    fixed_y_bounds: Option<(f64, f64)>,
+) {
+    let y_bounds = calculate_y_bounds(data, fixed_y_bounds);
+    let x_labels = format_time_axis_labels(view_start, view_end);
+
+    let block_title = if zoom_label.is_empty() {
+        format!(" {} ", title)
+    } else {
+        format!(" {} [{}] ", title, zoom_label)
+    };
+
+    let datasets = vec![
+        Dataset::default()
+            .marker(Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(color))
+            .data(data),
     ];
 
-    frame.render_widget(Paragraph::new(line), area);
+    let chart = Chart::new(datasets)
+        .block(Block::default().borders(Borders::ALL).title(block_title))
+        .x_axis(
+            Axis::default()
+                .style(LABEL)
+                .bounds([view_start as f64, view_end as f64])
+                .labels(x_labels),
+        )
+        .y_axis(Axis::default().style(LABEL).bounds(y_bounds).labels(vec![
+            Span::raw(format!("{:.1}", y_bounds[0])),
+            Span::raw(format!("{:.1}", y_bounds[1])),
+        ]));
+
+    frame.render_widget(chart, area);
+}
+
+fn draw_temp_chart(
+    frame: &mut Frame,
+    area: Rect,
+    temp_min_data: &[(f64, f64)],
+    temp_max_data: &[(f64, f64)],
+    view_start: u64,
+    view_end: u64,
+) {
+    let all_temps: Vec<(f64, f64)> = temp_min_data
+        .iter()
+        .chain(temp_max_data.iter())
+        .copied()
+        .collect();
+    let y_bounds = calculate_y_bounds(&all_temps, None);
+    let x_labels = format_time_axis_labels(view_start, view_end);
+
+    let datasets = vec![
+        Dataset::default()
+            .name("min")
+            .marker(Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Cyan))
+            .data(temp_min_data),
+        Dataset::default()
+            .name("max")
+            .marker(Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Red))
+            .data(temp_max_data),
+    ];
+
+    let chart = Chart::new(datasets)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Temperature (°C) [min/max] "),
+        )
+        .x_axis(
+            Axis::default()
+                .style(LABEL)
+                .bounds([view_start as f64, view_end as f64])
+                .labels(x_labels),
+        )
+        .y_axis(Axis::default().style(LABEL).bounds(y_bounds).labels(vec![
+            Span::raw(format!("{:.1}", y_bounds[0])),
+            Span::raw(format!("{:.1}", y_bounds[1])),
+        ]));
+
+    frame.render_widget(chart, area);
 }

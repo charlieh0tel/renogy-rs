@@ -18,4 +18,5 @@ clap = { version = "4.5.53", features = ["derive"] }
 ratatui = "0.29"
 ratatui-macros = "0.6"
 crossterm = "0.28"
+serde = { version = "1", features = ["derive"] }
 

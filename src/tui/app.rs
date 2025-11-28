@@ -1,6 +1,81 @@
 use crate::query::BatteryInfo;
 use ratatui::widgets::ListState;
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
+
+use super::history::History;
+
+#[derive(Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Tab {
+    #[default]
+    Overview,
+    Graphs,
+}
+
+pub const ZOOM_LEVELS: &[(u64, &str)] = &[
+    (60, "1 min"),
+    (300, "5 min"),
+    (900, "15 min"),
+    (3600, "1 hour"),
+    (14400, "4 hours"),
+    (43200, "12 hours"),
+    (86400, "24 hours"),
+    (172800, "48 hours"),
+];
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GraphViewState {
+    pub zoom_level_idx: usize,
+    pub scroll_offset_secs: u64,
+}
+
+impl Default for GraphViewState {
+    fn default() -> Self {
+        Self {
+            zoom_level_idx: 2, // default to 15 min
+            scroll_offset_secs: 0,
+        }
+    }
+}
+
+impl GraphViewState {
+    pub fn zoom_window_secs(&self) -> u64 {
+        ZOOM_LEVELS[self.zoom_level_idx].0
+    }
+
+    pub fn zoom_label(&self) -> &'static str {
+        ZOOM_LEVELS[self.zoom_level_idx].1
+    }
+
+    pub fn zoom_in(&mut self) {
+        if self.zoom_level_idx > 0 {
+            self.zoom_level_idx -= 1;
+        }
+    }
+
+    pub fn zoom_out(&mut self) {
+        if self.zoom_level_idx < ZOOM_LEVELS.len() - 1 {
+            self.zoom_level_idx += 1;
+        }
+    }
+
+    pub fn scroll_back(&mut self, secs: u64, max_offset: u64) {
+        self.scroll_offset_secs = (self.scroll_offset_secs + secs).min(max_offset);
+    }
+
+    pub fn scroll_forward(&mut self, secs: u64) {
+        self.scroll_offset_secs = self.scroll_offset_secs.saturating_sub(secs);
+    }
+
+    pub fn jump_to_newest(&mut self) {
+        self.scroll_offset_secs = 0;
+    }
+
+    pub fn jump_to_oldest(&mut self, history_duration: u64) {
+        let window = self.zoom_window_secs();
+        self.scroll_offset_secs = history_duration.saturating_sub(window);
+    }
+}
 
 pub struct App {
     pub batteries: Vec<(u8, Option<BatteryInfo>)>,
@@ -9,6 +84,9 @@ pub struct App {
     pub error: Option<String>,
     pub running: bool,
     pub refreshing: bool,
+    pub active_tab: Tab,
+    pub history: History,
+    pub graph_view: GraphViewState,
 }
 
 impl App {
@@ -25,7 +103,29 @@ impl App {
             error: None,
             running: true,
             refreshing: false,
+            active_tab: Tab::default(),
+            history: History::default(),
+            graph_view: GraphViewState::default(),
         }
+    }
+
+    pub fn next_tab(&mut self) {
+        self.active_tab = match self.active_tab {
+            Tab::Overview => Tab::Graphs,
+            Tab::Graphs => Tab::Overview,
+        };
+    }
+
+    pub fn record_history(&mut self) {
+        let rollup = self.rollup();
+        self.history.push(&rollup);
+    }
+
+    pub fn history_duration(&self) -> u64 {
+        self.history
+            .time_range()
+            .map(|(oldest, newest)| newest.saturating_sub(oldest))
+            .unwrap_or(0)
     }
 
     pub fn select_next(&mut self) {

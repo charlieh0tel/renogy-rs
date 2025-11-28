@@ -1086,6 +1086,7 @@ dependencies = [
  "futures",
  "ratatui",
  "ratatui-macros",
+ "serde",
  "tokio",
  "tokio-modbus",
  "tokio-serial",
