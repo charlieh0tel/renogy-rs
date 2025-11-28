@@ -378,6 +378,22 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
     let (current_data, soc_data, temp_min_data, temp_max_data) =
         prepare_chart_data(app, view_start, view_end);
 
+    let current_bounds = calculate_y_bounds(&current_data, None);
+    let soc_bounds = [0.0, 100.0];
+    let all_temps: Vec<(f64, f64)> = temp_min_data
+        .iter()
+        .chain(temp_max_data.iter())
+        .copied()
+        .collect();
+    let temp_bounds = calculate_y_bounds(&all_temps, None);
+
+    let y_label_width = [current_bounds, soc_bounds, temp_bounds]
+        .iter()
+        .flat_map(|b| b.iter())
+        .map(|v| format!("{:.1}", v).len())
+        .max()
+        .unwrap_or(4);
+
     draw_single_chart(
         frame,
         chunks[0],
@@ -387,7 +403,8 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         view_start,
         view_end,
         Color::Green,
-        None,
+        current_bounds,
+        y_label_width,
     );
 
     draw_single_chart(
@@ -399,7 +416,8 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         view_start,
         view_end,
         Color::Yellow,
-        Some((0.0, 100.0)),
+        soc_bounds,
+        y_label_width,
     );
 
     draw_temp_chart(
@@ -409,6 +427,8 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         &temp_max_data,
         view_start,
         view_end,
+        temp_bounds,
+        y_label_width,
     );
 }
 
@@ -504,9 +524,9 @@ fn draw_single_chart(
     view_start: u64,
     view_end: u64,
     color: Color,
-    fixed_y_bounds: Option<(f64, f64)>,
+    y_bounds: [f64; 2],
+    y_label_width: usize,
 ) {
-    let y_bounds = calculate_y_bounds(data, fixed_y_bounds);
     let x_labels = format_time_axis_labels(view_start, view_end);
 
     let block_title = if zoom_label.is_empty() {
@@ -531,14 +551,24 @@ fn draw_single_chart(
                 .bounds([view_start as f64, view_end as f64])
                 .labels(x_labels),
         )
-        .y_axis(Axis::default().style(LABEL).bounds(y_bounds).labels(vec![
-            Span::raw(format!("{:.1}", y_bounds[0])),
-            Span::raw(format!("{:.1}", y_bounds[1])),
-        ]));
+        .y_axis(
+            Axis::default()
+                .style(LABEL)
+                .bounds(y_bounds)
+                .labels(format_y_labels(y_bounds, y_label_width)),
+        );
 
     frame.render_widget(chart, area);
 }
 
+fn format_y_labels(bounds: [f64; 2], width: usize) -> Vec<Span<'static>> {
+    vec![
+        Span::raw(format!("{:>width$.1}", bounds[0])),
+        Span::raw(format!("{:>width$.1}", bounds[1])),
+    ]
+}
+
+#[allow(clippy::too_many_arguments)]
 fn draw_temp_chart(
     frame: &mut Frame,
     area: Rect,
@@ -546,13 +576,9 @@ fn draw_temp_chart(
     temp_max_data: &[(f64, f64)],
     view_start: u64,
     view_end: u64,
+    y_bounds: [f64; 2],
+    y_label_width: usize,
 ) {
-    let all_temps: Vec<(f64, f64)> = temp_min_data
-        .iter()
-        .chain(temp_max_data.iter())
-        .copied()
-        .collect();
-    let y_bounds = calculate_y_bounds(&all_temps, None);
     let x_labels = format_time_axis_labels(view_start, view_end);
 
     let datasets = vec![
@@ -582,10 +608,12 @@ fn draw_temp_chart(
                 .bounds([view_start as f64, view_end as f64])
                 .labels(x_labels),
         )
-        .y_axis(Axis::default().style(LABEL).bounds(y_bounds).labels(vec![
-            Span::raw(format!("{:.1}", y_bounds[0])),
-            Span::raw(format!("{:.1}", y_bounds[1])),
-        ]));
+        .y_axis(
+            Axis::default()
+                .style(LABEL)
+                .bounds(y_bounds)
+                .labels(format_y_labels(y_bounds, y_label_width)),
+        );
 
     frame.render_widget(chart, area);
 }
