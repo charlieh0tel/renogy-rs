@@ -1,9 +1,10 @@
 use crate::query::BatteryInfo;
+use ratatui::widgets::ListState;
 use std::time::Instant;
 
 pub struct App {
     pub batteries: Vec<(u8, Option<BatteryInfo>)>,
-    pub selected: usize,
+    pub list_state: ListState,
     pub last_update: Option<Instant>,
     pub error: Option<String>,
     pub running: bool,
@@ -12,10 +13,14 @@ pub struct App {
 
 impl App {
     pub fn new(addresses: Vec<u8>) -> Self {
-        let batteries = addresses.into_iter().map(|addr| (addr, None)).collect();
+        let batteries: Vec<_> = addresses.into_iter().map(|addr| (addr, None)).collect();
+        let mut list_state = ListState::default();
+        if !batteries.is_empty() {
+            list_state.select(Some(0));
+        }
         Self {
             batteries,
-            selected: 0,
+            list_state,
             last_update: None,
             error: None,
             running: true,
@@ -24,23 +29,34 @@ impl App {
     }
 
     pub fn select_next(&mut self) {
-        if !self.batteries.is_empty() {
-            self.selected = (self.selected + 1) % self.batteries.len();
+        if self.batteries.is_empty() {
+            return;
         }
+        let i = match self.list_state.selected() {
+            Some(i) => (i + 1) % self.batteries.len(),
+            None => 0,
+        };
+        self.list_state.select(Some(i));
     }
 
     pub fn select_previous(&mut self) {
-        if !self.batteries.is_empty() {
-            self.selected = self
-                .selected
-                .checked_sub(1)
-                .unwrap_or(self.batteries.len() - 1);
+        if self.batteries.is_empty() {
+            return;
         }
+        let i = match self.list_state.selected() {
+            Some(i) => i.checked_sub(1).unwrap_or(self.batteries.len() - 1),
+            None => 0,
+        };
+        self.list_state.select(Some(i));
+    }
+
+    pub fn selected(&self) -> usize {
+        self.list_state.selected().unwrap_or(0)
     }
 
     pub fn selected_battery(&self) -> Option<&BatteryInfo> {
         self.batteries
-            .get(self.selected)
+            .get(self.selected())
             .and_then(|(_, b)| b.as_ref())
     }
 

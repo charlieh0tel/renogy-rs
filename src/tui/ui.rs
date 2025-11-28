@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-pub fn draw(frame: &mut Frame, app: &App) {
+pub fn draw(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -81,7 +81,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, area);
 }
 
-fn draw_main_area(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_main_area(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Length(18), Constraint::Min(40)])
@@ -91,26 +91,20 @@ fn draw_main_area(frame: &mut Frame, app: &App, area: Rect) {
     draw_battery_detail(frame, app, chunks[1]);
 }
 
-fn draw_battery_list(frame: &mut Frame, app: &App, area: Rect) {
+fn draw_battery_list(frame: &mut Frame, app: &mut App, area: Rect) {
     let items: Vec<ListItem> = app
         .batteries
         .iter()
-        .enumerate()
-        .map(|(i, (addr, info))| {
+        .map(|(addr, info)| {
             let voltage_str = info
                 .as_ref()
                 .map(|b| format!("{:.1}V", b.module_voltage))
                 .unwrap_or_else(|| "---".to_string());
 
-            let prefix = if i == app.selected { ">" } else { " " };
-            let content = format!("{} 0x{:02X} {}", prefix, addr, voltage_str);
+            let content = format!("0x{:02X} {}", addr, voltage_str);
 
-            let style = if i == app.selected {
+            let style = if info.is_some() {
                 Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else if info.is_some() {
-                Style::default().fg(Color::White)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -119,14 +113,21 @@ fn draw_battery_list(frame: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Batteries ")
-            .title_style(Style::default().add_modifier(Modifier::BOLD)),
-    );
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Batteries ")
+                .title_style(Style::default().add_modifier(Modifier::BOLD)),
+        )
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
 
-    frame.render_widget(list, area);
+    frame.render_stateful_widget(list, area, &mut app.list_state);
 }
 
 fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
@@ -138,7 +139,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
     let Some(battery) = app.selected_battery() else {
         let addr = app
             .batteries
-            .get(app.selected)
+            .get(app.selected())
             .map(|(a, _)| *a)
             .unwrap_or(0);
         let text = Paragraph::new(format!("No data for 0x{:02X}", addr)).block(block);
@@ -194,7 +195,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
 
     // Line 3: SOC bar
     let soc = battery.soc_percent.clamp(0.0, 100.0);
-    let bar_width = 30;
+    let bar_width = 20;
     let filled = ((soc / 100.0) * bar_width as f32) as usize;
     let empty = bar_width - filled;
     let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
@@ -208,8 +209,30 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
         Span::styled(bar, Style::default().fg(soc_color(soc))),
     ]));
 
-    // Blank line
-    lines.push(Line::from(""));
+    // Temperatures (put near top so they don't scroll off)
+    if !battery.cell_temperatures.is_empty() {
+        let min_t = battery
+            .cell_temperatures
+            .iter()
+            .cloned()
+            .fold(f32::MAX, f32::min);
+        let max_t = battery
+            .cell_temperatures
+            .iter()
+            .cloned()
+            .fold(f32::MIN, f32::max);
+        lines.push(Line::from(vec![
+            Span::styled("Temp: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                format!("{:.1}-{:.1}°C", min_t, max_t),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::styled(
+                format!(" ({} sensors)", battery.cell_temperatures.len()),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+    }
 
     // Cell voltages
     if !battery.cell_voltages.is_empty() {
@@ -225,15 +248,19 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
             .fold(f32::MIN, f32::max);
         let delta = max_v - min_v;
 
-        lines.push(Line::from(Span::styled(
-            format!(
-                "Cells: Min:{:.3} Max:{:.3} Δ:{:.0}mV",
-                min_v,
-                max_v,
-                delta * 1000.0
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("Cells[{}]: ", battery.cell_voltages.len()),
+                Style::default().fg(Color::DarkGray),
             ),
-            Style::default().fg(Color::DarkGray),
-        )));
+            Span::styled(format!("{:.3}", min_v), Style::default().fg(Color::Red)),
+            Span::styled(" - ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.3}V", max_v), Style::default().fg(Color::Green)),
+            Span::styled(
+                format!(" Δ{:.0}mV", delta * 1000.0),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
 
         for chunk in battery.cell_voltages.chunks(4) {
             let spans: Vec<Span> = chunk
@@ -251,20 +278,11 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
                 .collect();
             lines.push(Line::from(spans));
         }
-    }
-
-    // Temperatures
-    if !battery.cell_temperatures.is_empty() {
-        lines.push(Line::from("")); // blank line
-
-        let temps: Vec<Span> =
-            std::iter::once(Span::styled("Temp: ", Style::default().fg(Color::DarkGray)))
-                .chain(battery.cell_temperatures.iter().map(|t| {
-                    Span::styled(format!("{:.1}°C ", t), Style::default().fg(Color::Cyan))
-                }))
-                .collect();
-
-        lines.push(Line::from(temps));
+    } else {
+        lines.push(Line::from(Span::styled(
+            format!("Cells: {} (no voltage data)", battery.cell_count),
+            Style::default().fg(Color::DarkGray),
+        )));
     }
 
     let paragraph = Paragraph::new(lines).block(block);
