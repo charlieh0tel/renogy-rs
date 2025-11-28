@@ -32,8 +32,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),
-            Constraint::Min(10),
+            Constraint::Length(4),
+            Constraint::Min(12),
             Constraint::Length(1),
         ])
         .split(frame.area());
@@ -53,34 +53,26 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
 
     let current_sign = if rollup.total_current >= 0.0 { "+" } else { "" };
 
-    let line1 = Line::from(vec![
-        Span::styled("Current: ", LABEL),
+    let soc = rollup.average_soc.clamp(0.0, 100.0);
+    let bar_width = 20;
+    let filled = ((soc / 100.0) * bar_width as f32) as usize;
+    let empty = bar_width - filled;
+    let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
+
+    let line = Line::from(vec![
         Span::styled(
             format!("{}{:.1}A", current_sign, rollup.total_current),
             Style::default().fg(color_current(rollup.total_current)),
         ),
-        Span::raw("  "),
-        Span::styled("Temp: ", LABEL),
-        Span::styled(temp_str, Style::default().fg(Color::Cyan)),
-    ]);
-
-    let soc = rollup.average_soc.clamp(0.0, 100.0);
-    let bar_width = 40;
-    let filled = ((soc / 100.0) * bar_width as f32) as usize;
-    let empty = bar_width - filled;
-    let bar = format!("{}{}", "#".repeat(filled), "-".repeat(empty));
-
-    let line2 = Line::from(vec![
-        Span::styled("Capacity: ", LABEL),
-        Span::styled(
-            format!("{:5.1}% ", soc),
-            Style::default().fg(color_soc(soc)),
-        ),
-        Span::styled(format!("[{}]", bar), Style::default().fg(color_soc(soc))),
+        Span::raw(" "),
+        Span::styled(format!("{:4.0}%", soc), Style::default().fg(color_soc(soc))),
+        Span::styled(bar, Style::default().fg(color_soc(soc))),
         Span::raw(format!(
-            " {:.0}/{:.0}Ah",
+            "{:.0}/{:.0}Ah",
             rollup.total_remaining_ah, rollup.total_capacity_ah
         )),
+        Span::raw(" "),
+        Span::styled(temp_str, Style::default().fg(Color::Cyan)),
     ]);
 
     let title = format!(
@@ -93,7 +85,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
         .title(title)
         .title_style(BOLD);
 
-    let paragraph = Paragraph::new(vec![line1, line2]).block(block);
+    let paragraph = Paragraph::new(vec![line]).block(block);
     frame.render_widget(paragraph, area);
 }
 
@@ -202,7 +194,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
     let bar_width = 20;
     let filled = ((soc / 100.0) * bar_width as f32) as usize;
     let empty = bar_width - filled;
-    let bar = format!("{}{}", "#".repeat(filled), "-".repeat(empty));
+    let bar = format!("{}{}", "█".repeat(filled), "░".repeat(empty));
 
     lines.push(Line::from(vec![
         Span::styled("SOC: ", LABEL),
@@ -210,7 +202,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
             format!("{:5.1}% ", soc),
             Style::default().fg(color_soc(soc)),
         ),
-        Span::styled(format!("[{}]", bar), Style::default().fg(color_soc(soc))),
+        Span::styled(bar, Style::default().fg(color_soc(soc))),
     ]));
 
     // Temperatures
