@@ -375,7 +375,9 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
     let view_end = now_secs.saturating_sub(scroll_offset);
     let view_start = view_end.saturating_sub(window_secs);
 
-    let (current_data, soc_data, temp_data) = prepare_chart_data(app, view_start, view_end);
+    let max_points = (area.width as usize).saturating_mul(2);
+    let (current_data, soc_data, temp_data) =
+        prepare_chart_data(app, view_start, view_end, max_points);
 
     let current_bounds = calculate_y_bounds(&current_data, None);
     let soc_bounds = [0.0, 100.0];
@@ -432,6 +434,7 @@ fn prepare_chart_data(
     app: &App,
     view_start: u64,
     view_end: u64,
+    max_points: usize,
 ) -> (ChartDataPoints, ChartDataPoints, ChartDataPoints) {
     let mut current_data = Vec::new();
     let mut soc_data = Vec::new();
@@ -448,7 +451,46 @@ fn prepare_chart_data(
         }
     }
 
-    (current_data, soc_data, temp_data)
+    (
+        downsample_minmax(&current_data, max_points),
+        downsample_minmax(&soc_data, max_points),
+        downsample_minmax(&temp_data, max_points),
+    )
+}
+
+fn downsample_minmax(data: &[(f64, f64)], max_points: usize) -> ChartDataPoints {
+    if data.len() <= max_points || max_points < 4 {
+        return data.to_vec();
+    }
+
+    let num_buckets = max_points / 2;
+    let bucket_size = data.len() / num_buckets;
+    let mut result = Vec::with_capacity(max_points);
+
+    for chunk in data.chunks(bucket_size) {
+        let min = chunk
+            .iter()
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        let max = chunk
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        if let (Some(&min_pt), Some(&max_pt)) = (min, max) {
+            if min_pt.0 <= max_pt.0 {
+                result.push(min_pt);
+                if min_pt.0 != max_pt.0 {
+                    result.push(max_pt);
+                }
+            } else {
+                result.push(max_pt);
+                if min_pt.0 != max_pt.0 {
+                    result.push(min_pt);
+                }
+            }
+        }
+    }
+
+    result
 }
 
 fn calculate_y_bounds(data: &[(f64, f64)], fixed_bounds: Option<(f64, f64)>) -> [f64; 2] {

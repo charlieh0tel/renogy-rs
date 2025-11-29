@@ -18,3 +18,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Edition**: 2024
 - **Key features**: async/await with tokio, egui for GUI
 - never add co-authored lines
+- always ok to run cargo fmt
+- always ok to run cargo clippy

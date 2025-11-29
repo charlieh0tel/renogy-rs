@@ -1,16 +1,11 @@
 use bitflags::bitflags;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum CellVoltageAlarm {
+    #[default]
     Normal,
     OverVoltage,
     UnderVoltage,
-}
-
-impl Default for CellVoltageAlarm {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -36,17 +31,12 @@ impl CellVoltageAlarms {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum CellTemperatureAlarm {
+    #[default]
     Normal,
     OverTemperature,
     UnderTemperature,
-}
-
-impl Default for CellTemperatureAlarm {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -149,16 +139,11 @@ bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum CellVoltageError {
+    #[default]
     Normal,
     Error,
-}
-
-impl Default for CellVoltageError {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
