@@ -196,10 +196,7 @@ impl Transport for Bt2Transport {
         addr: u16,
         quantity: u16,
     ) -> Result<Vec<u16>> {
-        let mut payload = Vec::with_capacity(4);
-        payload.extend_from_slice(&addr.to_be_bytes());
-        payload.extend_from_slice(&quantity.to_be_bytes());
-
+        let payload = [addr.to_be_bytes(), quantity.to_be_bytes()].concat();
         let response = self
             .send_pdu(&Pdu::new(
                 slave,
@@ -221,10 +218,7 @@ impl Transport for Bt2Transport {
     }
 
     async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()> {
-        let mut payload = Vec::with_capacity(4);
-        payload.extend_from_slice(&addr.to_be_bytes());
-        payload.extend_from_slice(&value.to_be_bytes());
-
+        let payload = [addr.to_be_bytes(), value.to_be_bytes()].concat();
         self.send_pdu(&Pdu::new(slave, FunctionCode::WriteSingleRegister, payload))
             .await?;
         Ok(())

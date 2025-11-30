@@ -29,10 +29,7 @@ impl VmClient {
                 }
             }
         } else {
-            return Err(format!(
-                "Unexpected response type: {:?}",
-                response.data()
-            ));
+            return Err(format!("Unexpected response type: {:?}", response.data()));
         }
 
         Ok(batteries)

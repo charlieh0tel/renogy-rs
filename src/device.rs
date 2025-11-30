@@ -62,11 +62,8 @@ impl DeviceCommand {
         }
     }
 
-    /// Helper method to create write PDU for register operations
     fn create_write_pdu(device_address: u8, register_address: u16, value: u16) -> Pdu {
-        let mut payload = Vec::new();
-        payload.extend_from_slice(&register_address.to_be_bytes());
-        payload.extend_from_slice(&value.to_be_bytes());
+        let payload = [register_address.to_be_bytes(), value.to_be_bytes()].concat();
         Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
     }
 

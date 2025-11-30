@@ -18,13 +18,10 @@ impl CellVoltageAlarms {
     pub fn from_bits(value: u32) -> Self {
         let mut alarms = [CellVoltageAlarm::default(); 16];
         for (i, alarm) in alarms.iter_mut().enumerate() {
-            if (value >> i) & 1 == 1 {
-                *alarm = CellVoltageAlarm::UnderVoltage;
-            }
-        }
-        for (i, alarm) in alarms.iter_mut().enumerate() {
             if (value >> (i + 16)) & 1 == 1 {
                 *alarm = CellVoltageAlarm::OverVoltage;
+            } else if (value >> i) & 1 == 1 {
+                *alarm = CellVoltageAlarm::UnderVoltage;
             }
         }
         Self { alarms }
@@ -49,13 +46,10 @@ impl CellTemperatureAlarms {
     pub fn from_bits(value: u32) -> Self {
         let mut alarms = [CellTemperatureAlarm::default(); 16];
         for (i, alarm) in alarms.iter_mut().enumerate() {
-            if (value >> i) & 1 == 1 {
-                *alarm = CellTemperatureAlarm::UnderTemperature;
-            }
-        }
-        for (i, alarm) in alarms.iter_mut().enumerate() {
             if (value >> (i + 16)) & 1 == 1 {
                 *alarm = CellTemperatureAlarm::OverTemperature;
+            } else if (value >> i) & 1 == 1 {
+                *alarm = CellTemperatureAlarm::UnderTemperature;
             }
         }
         Self { alarms }

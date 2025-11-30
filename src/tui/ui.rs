@@ -465,12 +465,8 @@ fn downsample_minmax(data: &[(f64, f64)], max_points: usize) -> ChartDataPoints 
     let mut result = Vec::with_capacity(max_points);
 
     for chunk in data.chunks(bucket_size) {
-        let min = chunk
-            .iter()
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        let max = chunk
-            .iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        let min = chunk.iter().min_by(|a, b| a.1.total_cmp(&b.1));
+        let max = chunk.iter().max_by(|a, b| a.1.total_cmp(&b.1));
 
         if let (Some(&min_pt), Some(&max_pt)) = (min, max) {
             if min_pt.0 <= max_pt.0 {
