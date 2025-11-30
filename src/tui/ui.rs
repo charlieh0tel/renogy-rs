@@ -707,13 +707,7 @@ fn draw_single_chart_with_zero_line(
         format!(" {} [{}] ", title, zoom_label)
     };
 
-    let mut datasets = vec![
-        Dataset::default()
-            .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
-            .style(Style::default().fg(color))
-            .data(data),
-    ];
+    let mut datasets = Vec::new();
 
     let zero_line_data: Vec<(f64, f64)>;
     if show_zero_line && y_bounds[0] < 0.0 && y_bounds[1] > 0.0 {
@@ -722,10 +716,18 @@ fn draw_single_chart_with_zero_line(
             Dataset::default()
                 .marker(Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(Color::DarkGray))
+                .style(Style::default().fg(Color::Rgb(60, 60, 60)))
                 .data(&zero_line_data),
         );
     }
+
+    datasets.push(
+        Dataset::default()
+            .marker(Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(color))
+            .data(data),
+    );
 
     let chart = Chart::new(datasets)
         .block(Block::default().borders(Borders::ALL).title(block_title))
@@ -745,9 +747,17 @@ fn draw_single_chart_with_zero_line(
     frame.render_widget(chart, area);
 }
 
+fn format_y_label(value: f64, width: usize) -> String {
+    if value == 0.0 || value == -0.0 {
+        format!("{:>width$.1}", 0.0_f64)
+    } else {
+        format!("{:>width$.1}", value)
+    }
+}
+
 fn format_y_labels(bounds: [f64; 2], width: usize) -> Vec<Span<'static>> {
     vec![
-        Span::raw(format!("{:>width$.1}", bounds[0])),
-        Span::raw(format!("{:>width$.1}", bounds[1])),
+        Span::raw(format_y_label(bounds[0], width)),
+        Span::raw(format_y_label(bounds[1], width)),
     ]
 }
