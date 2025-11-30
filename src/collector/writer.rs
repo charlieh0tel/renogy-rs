@@ -38,10 +38,8 @@ impl VmWriter {
 
             let samples = self.buffer.drain_all();
             if samples.is_empty() {
-                tracing::trace!("Buffer empty, waiting...");
                 continue;
             }
-            tracing::debug!("Draining {} samples from buffer", samples.len());
 
             match self.write_samples(&samples).await {
                 Ok(()) => {
@@ -72,7 +70,6 @@ impl VmWriter {
 
     async fn write_samples(&self, samples: &[BatteryInfo]) -> Result<(), String> {
         let body = batch_to_influx(samples);
-        tracing::debug!("POST {} ({} bytes)", self.url, body.len());
 
         let response = self
             .client

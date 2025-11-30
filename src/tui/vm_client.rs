@@ -16,7 +16,7 @@ impl VmClient {
     pub async fn discover_batteries(&self) -> Result<Vec<String>, String> {
         let response = self
             .client
-            .query("group by (battery) (renogy_soc_percent)")
+            .query("group by (battery) (renogy_soc_percent_value)")
             .get()
             .await
             .map_err(|e| e.to_string())?;
@@ -35,28 +35,37 @@ impl VmClient {
 
     pub async fn query_latest(&self, battery: &str) -> Result<Option<BatteryInfo>, String> {
         let module_voltage = self
-            .query_instant_value(&format!("renogy_module_voltage{{battery=\"{}\"}}", battery))
+            .query_instant_value(&format!(
+                "renogy_module_voltage_value{{battery=\"{}\"}}",
+                battery
+            ))
             .await?;
         let current = self
-            .query_instant_value(&format!("renogy_current{{battery=\"{}\"}}", battery))
+            .query_instant_value(&format!("renogy_current_value{{battery=\"{}\"}}", battery))
             .await?;
         let soc_percent = self
-            .query_instant_value(&format!("renogy_soc_percent{{battery=\"{}\"}}", battery))
+            .query_instant_value(&format!(
+                "renogy_soc_percent_value{{battery=\"{}\"}}",
+                battery
+            ))
             .await?;
         let remaining_capacity = self
             .query_instant_value(&format!(
-                "renogy_remaining_capacity_ah{{battery=\"{}\"}}",
+                "renogy_remaining_capacity_ah_value{{battery=\"{}\"}}",
                 battery
             ))
             .await?;
         let total_capacity = self
             .query_instant_value(&format!(
-                "renogy_total_capacity_ah{{battery=\"{}\"}}",
+                "renogy_total_capacity_ah_value{{battery=\"{}\"}}",
                 battery
             ))
             .await?;
         let cycle_count = self
-            .query_instant_value(&format!("renogy_cycle_count{{battery=\"{}\"}}", battery))
+            .query_instant_value(&format!(
+                "renogy_cycle_count_value{{battery=\"{}\"}}",
+                battery
+            ))
             .await?;
 
         if module_voltage.is_none() && soc_percent.is_none() {
@@ -64,10 +73,10 @@ impl VmClient {
         }
 
         let cell_voltages = self
-            .query_cell_values(battery, "renogy_cell_voltage")
+            .query_cell_values(battery, "renogy_cell_voltage_value")
             .await?;
         let cell_temperatures = self
-            .query_cell_values(battery, "renogy_cell_temperature")
+            .query_cell_values(battery, "renogy_cell_temperature_value")
             .await?;
 
         let info = BatteryInfo {
@@ -144,13 +153,13 @@ impl VmClient {
 
         let agg_window = format!("{}s", step_secs);
 
-        let current_query = format!("avg_over_time(sum(renogy_current)[{}])", agg_window);
+        let current_query = format!("avg_over_time(sum(renogy_current_value)[{}])", agg_window);
         let soc_query = format!(
-            "avg_over_time((sum(renogy_remaining_capacity_ah) / sum(renogy_total_capacity_ah) * 100)[{}])",
+            "avg_over_time((sum(renogy_remaining_capacity_ah_value) / sum(renogy_total_capacity_ah_value) * 100)[{}])",
             agg_window
         );
         let temp_query = format!(
-            "avg_over_time(avg(renogy_cell_temperature)[{}])",
+            "avg_over_time(avg(renogy_cell_temperature_value)[{}])",
             agg_window
         );
 

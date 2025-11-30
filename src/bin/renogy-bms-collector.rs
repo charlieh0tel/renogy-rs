@@ -226,25 +226,19 @@ async fn run_poller(
     buffer: &SampleBuffer,
     cancel: CancellationToken,
 ) {
-    tracing::info!("Poller starting with {}s interval", poll_interval.as_secs());
     let mut interval = tokio::time::interval(poll_interval);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
-        tracing::debug!("Waiting for next tick...");
         tokio::select! {
-            _ = interval.tick() => {
-                tracing::debug!("Tick!");
-            }
+            _ = interval.tick() => {}
             _ = cancel.cancelled() => {
                 tracing::info!("Poller stopping");
                 return;
             }
         }
 
-        tracing::debug!("Polling {} batteries...", addresses.len());
         for &addr in addresses {
-            tracing::trace!("Querying 0x{:02X}...", addr);
             match transport.query_battery(addr).await {
                 Some(info) => {
                     tracing::debug!(
