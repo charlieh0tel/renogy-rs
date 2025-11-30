@@ -2,6 +2,7 @@ use prometheus_http_query::{Client, Error as PromError};
 
 use super::history::DataPoint;
 use crate::BatteryInfo;
+use crate::alarm::{Status1, Status2};
 
 pub struct VmClient {
     client: Client,
@@ -60,6 +61,14 @@ impl VmClient {
         let mut cycle_count = None;
         let mut cell_voltages: Vec<(u32, f32)> = Vec::new();
         let mut cell_temperatures: Vec<(u32, f32)> = Vec::new();
+        let mut environment_temperatures: Vec<(u32, f32)> = Vec::new();
+        let mut heater_temperatures: Vec<(u32, f32)> = Vec::new();
+        let mut charge_voltage_limit = None;
+        let mut discharge_voltage_limit = None;
+        let mut charge_current_limit = None;
+        let mut discharge_current_limit = None;
+        let mut status1_raw = None;
+        let mut status2_raw = None;
 
         for sample in samples {
             let value = sample.sample().value() as f32;
@@ -72,6 +81,16 @@ impl VmClient {
                 Some("renogy_remaining_capacity_ah_value") => remaining_capacity = Some(value),
                 Some("renogy_total_capacity_ah_value") => total_capacity = Some(value),
                 Some("renogy_cycle_count_value") => cycle_count = Some(value),
+                Some("renogy_charge_voltage_limit_value") => charge_voltage_limit = Some(value),
+                Some("renogy_discharge_voltage_limit_value") => {
+                    discharge_voltage_limit = Some(value)
+                }
+                Some("renogy_charge_current_limit_value") => charge_current_limit = Some(value),
+                Some("renogy_discharge_current_limit_value") => {
+                    discharge_current_limit = Some(value)
+                }
+                Some("renogy_status1_value") => status1_raw = Some(value as u16),
+                Some("renogy_status2_value") => status2_raw = Some(value as u16),
                 Some("renogy_cell_voltage_value") => {
                     if let Some(cell) = sample.metric().get("cell").and_then(|c| c.parse().ok()) {
                         cell_voltages.push((cell, value));
@@ -80,6 +99,18 @@ impl VmClient {
                 Some("renogy_cell_temperature_value") => {
                     if let Some(cell) = sample.metric().get("cell").and_then(|c| c.parse().ok()) {
                         cell_temperatures.push((cell, value));
+                    }
+                }
+                Some("renogy_environment_temperature_value") => {
+                    if let Some(sensor) = sample.metric().get("sensor").and_then(|c| c.parse().ok())
+                    {
+                        environment_temperatures.push((sensor, value));
+                    }
+                }
+                Some("renogy_heater_temperature_value") => {
+                    if let Some(sensor) = sample.metric().get("sensor").and_then(|c| c.parse().ok())
+                    {
+                        heater_temperatures.push((sensor, value));
                     }
                 }
                 _ => {}
@@ -92,9 +123,17 @@ impl VmClient {
 
         cell_voltages.sort_by_key(|(n, _)| *n);
         cell_temperatures.sort_by_key(|(n, _)| *n);
+        environment_temperatures.sort_by_key(|(n, _)| *n);
+        heater_temperatures.sort_by_key(|(n, _)| *n);
 
         let cell_voltages: Vec<f32> = cell_voltages.into_iter().map(|(_, v)| v).collect();
         let cell_temperatures: Vec<f32> = cell_temperatures.into_iter().map(|(_, v)| v).collect();
+        let environment_temperatures: Vec<f32> = environment_temperatures
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect();
+        let heater_temperatures: Vec<f32> =
+            heater_temperatures.into_iter().map(|(_, v)| v).collect();
 
         Ok(Some(BatteryInfo {
             serial: battery.to_string(),
@@ -105,20 +144,20 @@ impl VmClient {
             cell_voltages,
             cell_temperatures,
             bms_temperature: None,
-            environment_temperatures: Vec::new(),
-            heater_temperatures: Vec::new(),
+            environment_temperatures,
+            heater_temperatures,
             module_voltage: module_voltage.unwrap_or(0.0),
             current: current.unwrap_or(0.0),
             soc_percent: soc_percent.unwrap_or(0.0),
             remaining_capacity: remaining_capacity.unwrap_or(0.0),
             total_capacity: total_capacity.unwrap_or(0.0),
             cycle_count: cycle_count.unwrap_or(0.0) as u32,
-            charge_voltage_limit: None,
-            discharge_voltage_limit: None,
-            charge_current_limit: None,
-            discharge_current_limit: None,
-            status1: None,
-            status2: None,
+            charge_voltage_limit,
+            discharge_voltage_limit,
+            charge_current_limit,
+            discharge_current_limit,
+            status1: status1_raw.map(Status1::from_bits_truncate),
+            status2: status2_raw.map(Status2::from_bits_truncate),
             status3: None,
             other_alarm_info: None,
             cell_voltage_alarms: None,
