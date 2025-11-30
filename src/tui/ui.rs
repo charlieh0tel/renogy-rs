@@ -161,7 +161,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_main_area(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(36), Constraint::Min(40)])
+        .constraints([Constraint::Length(42), Constraint::Min(40)])
         .split(area);
 
     draw_battery_list(frame, app, chunks[0]);
