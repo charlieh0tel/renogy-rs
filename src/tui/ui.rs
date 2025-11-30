@@ -161,7 +161,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_main_area(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(18), Constraint::Min(40)])
+        .constraints([Constraint::Length(32), Constraint::Min(40)])
         .split(area);
 
     draw_battery_list(frame, app, chunks[0]);
@@ -173,27 +173,23 @@ fn draw_battery_list(frame: &mut Frame, app: &mut App, area: Rect) {
         .batteries
         .iter()
         .map(|(addr, info)| {
-            let voltage_str = info
-                .as_ref()
-                .map(|b| format!("{:.1}V", b.module_voltage))
-                .unwrap_or_else(|| "---".to_string());
+            let Some(b) = info else {
+                return ListItem::new(format!("0x{:02X} ---", addr)).style(LABEL);
+            };
 
-            let has_alarm = info.as_ref().is_some_and(has_alarms);
+            let has_alarm = has_alarms(b);
             let alarm_indicator = if has_alarm { "!" } else { " " };
 
             let content = Line::from(vec![
                 span!(if has_alarm { Style::default().fg(Color::Red) } else { Style::default() };
-                      format!("{}", alarm_indicator)),
-                Span::raw(format!("0x{:02X} {}", addr, voltage_str)),
+                      alarm_indicator),
+                Span::raw(format!(
+                    "{} {:4.1}% {:.1}V",
+                    &b.serial, b.soc_percent, b.module_voltage
+                )),
             ]);
 
-            let style = if info.is_some() {
-                Style::default()
-            } else {
-                LABEL
-            };
-
-            ListItem::new(content).style(style)
+            ListItem::new(content)
         })
         .collect();
 
