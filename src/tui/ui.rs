@@ -109,20 +109,36 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
     let soc = rollup.average_soc;
     let bar = soc_bar(soc, 40);
 
+    let alarm_count = app
+        .batteries
+        .iter()
+        .filter(|(_, info)| info.as_ref().is_some_and(has_alarms))
+        .count();
+
+    let mut first_line = line![
+        span!(LABEL; "Current: "),
+        span!(Style::default().fg(color_current(rollup.total_current)); format!("{sign}{:.1}A", rollup.total_current)),
+        "    ",
+        span!(LABEL; "Capacity: "),
+        format!(
+            "{:.0}/{:.0}Ah",
+            rollup.total_remaining_ah, rollup.total_capacity_ah
+        ),
+        "    ",
+        span!(LABEL; "Temp: "),
+        span!(Style::default().fg(Color::Cyan); temp_str),
+    ];
+
+    if alarm_count > 0 {
+        first_line.push_span(Span::raw("    "));
+        first_line.push_span(
+            span!(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);
+            format!("ALARMS: {}", alarm_count)),
+        );
+    }
+
     let lines = vec![
-        line![
-            span!(LABEL; "Current: "),
-            span!(Style::default().fg(color_current(rollup.total_current)); format!("{sign}{:.1}A", rollup.total_current)),
-            "    ",
-            span!(LABEL; "Capacity: "),
-            format!(
-                "{:.0}/{:.0}Ah",
-                rollup.total_remaining_ah, rollup.total_capacity_ah
-            ),
-            "    ",
-            span!(LABEL; "Temp: "),
-            span!(Style::default().fg(Color::Cyan); temp_str),
-        ],
+        first_line,
         line![],
         line![
             span!(LABEL; "SOC: "),
@@ -162,7 +178,14 @@ fn draw_battery_list(frame: &mut Frame, app: &mut App, area: Rect) {
                 .map(|b| format!("{:.1}V", b.module_voltage))
                 .unwrap_or_else(|| "---".to_string());
 
-            let content = format!("0x{:02X} {}", addr, voltage_str);
+            let has_alarm = info.as_ref().is_some_and(has_alarms);
+            let alarm_indicator = if has_alarm { "!" } else { " " };
+
+            let content = Line::from(vec![
+                span!(if has_alarm { Style::default().fg(Color::Red) } else { Style::default() };
+                      format!("{}", alarm_indicator)),
+                Span::raw(format!("0x{:02X} {}", addr, voltage_str)),
+            ]);
 
             let style = if info.is_some() {
                 Style::default()
@@ -416,6 +439,10 @@ fn collect_alarms(battery: &crate::query::BatteryInfo) -> Vec<&'static str> {
     }
 
     alarms
+}
+
+fn has_alarms(battery: &crate::query::BatteryInfo) -> bool {
+    !collect_alarms(battery).is_empty()
 }
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
@@ -716,7 +743,11 @@ fn draw_single_chart_with_zero_line(
             Dataset::default()
                 .marker(Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM))
+                .style(
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::DIM),
+                )
                 .data(&zero_line_data),
         );
     }
