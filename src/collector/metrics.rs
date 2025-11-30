@@ -6,6 +6,10 @@ use prometheus_client::metrics::gauge::Gauge;
 use prometheus_client::registry::Registry;
 use std::sync::atomic::AtomicU64;
 
+fn bool_to_f64(b: bool) -> f64 {
+    if b { 1.0 } else { 0.0 }
+}
+
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
 pub struct BatteryLabels {
     pub battery: String,
@@ -17,16 +21,39 @@ pub struct CellLabels {
     pub cell: String,
 }
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct SensorLabels {
+    pub battery: String,
+    pub sensor: String,
+}
+
 #[derive(Default)]
 pub struct PrometheusMetrics {
     pub cell_voltage: Family<CellLabels, Gauge<f64, AtomicU64>>,
     pub cell_temperature: Family<CellLabels, Gauge<f64, AtomicU64>>,
+    pub bms_temperature: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub environment_temperature: Family<SensorLabels, Gauge<f64, AtomicU64>>,
+    pub heater_temperature: Family<SensorLabels, Gauge<f64, AtomicU64>>,
     pub module_voltage: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
     pub current: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
     pub remaining_capacity_ah: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
     pub total_capacity_ah: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
     pub soc_percent: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
     pub cycle_count: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub charge_voltage_limit: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub discharge_voltage_limit: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub charge_current_limit: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub discharge_current_limit: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub status1: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub status2: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub status3: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub other_alarm_info: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub charge_mosfet_on: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub discharge_mosfet_on: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub charge_enabled: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub discharge_enabled: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub fully_charged: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
+    pub heater_on: Family<BatteryLabels, Gauge<f64, AtomicU64>>,
 }
 
 impl PrometheusMetrics {
@@ -40,6 +67,21 @@ impl PrometheusMetrics {
             "renogy_cell_temperature",
             "Individual cell temperature in celsius",
             self.cell_temperature.clone(),
+        );
+        registry.register(
+            "renogy_bms_temperature",
+            "BMS board temperature in celsius",
+            self.bms_temperature.clone(),
+        );
+        registry.register(
+            "renogy_environment_temperature",
+            "Environment temperature sensor in celsius",
+            self.environment_temperature.clone(),
+        );
+        registry.register(
+            "renogy_heater_temperature",
+            "Heater temperature sensor in celsius",
+            self.heater_temperature.clone(),
         );
         registry.register(
             "renogy_module_voltage",
@@ -71,9 +113,81 @@ impl PrometheusMetrics {
             "Number of charge cycles",
             self.cycle_count.clone(),
         );
+        registry.register(
+            "renogy_charge_voltage_limit",
+            "Charge voltage limit in volts",
+            self.charge_voltage_limit.clone(),
+        );
+        registry.register(
+            "renogy_discharge_voltage_limit",
+            "Discharge voltage limit in volts",
+            self.discharge_voltage_limit.clone(),
+        );
+        registry.register(
+            "renogy_charge_current_limit",
+            "Charge current limit in amps",
+            self.charge_current_limit.clone(),
+        );
+        registry.register(
+            "renogy_discharge_current_limit",
+            "Discharge current limit in amps",
+            self.discharge_current_limit.clone(),
+        );
+        registry.register(
+            "renogy_status1",
+            "Status1 register raw value (protection flags)",
+            self.status1.clone(),
+        );
+        registry.register(
+            "renogy_status2",
+            "Status2 register raw value (warning flags)",
+            self.status2.clone(),
+        );
+        registry.register(
+            "renogy_status3",
+            "Status3 register raw value (cell voltage errors)",
+            self.status3.clone(),
+        );
+        registry.register(
+            "renogy_other_alarm_info",
+            "Other alarm info register raw value",
+            self.other_alarm_info.clone(),
+        );
+        registry.register(
+            "renogy_charge_mosfet_on",
+            "Charge MOSFET state (1=on, 0=off)",
+            self.charge_mosfet_on.clone(),
+        );
+        registry.register(
+            "renogy_discharge_mosfet_on",
+            "Discharge MOSFET state (1=on, 0=off)",
+            self.discharge_mosfet_on.clone(),
+        );
+        registry.register(
+            "renogy_charge_enabled",
+            "Charge enabled (1=yes, 0=no)",
+            self.charge_enabled.clone(),
+        );
+        registry.register(
+            "renogy_discharge_enabled",
+            "Discharge enabled (1=yes, 0=no)",
+            self.discharge_enabled.clone(),
+        );
+        registry.register(
+            "renogy_fully_charged",
+            "Battery fully charged (1=yes, 0=no)",
+            self.fully_charged.clone(),
+        );
+        registry.register(
+            "renogy_heater_on",
+            "Heater state (1=on, 0=off)",
+            self.heater_on.clone(),
+        );
     }
 
     pub fn update(&self, info: &BatteryInfo) {
+        use crate::{ChargeDischargeStatus, Status1, Status2};
+
         let serial = &info.serial;
         let battery_labels = BatteryLabels {
             battery: serial.clone(),
@@ -97,6 +211,32 @@ impl PrometheusMetrics {
                 .set(temp as f64);
         }
 
+        if let Some(temp) = info.bms_temperature {
+            self.bms_temperature
+                .get_or_create(&battery_labels)
+                .set(temp as f64);
+        }
+
+        for (i, &temp) in info.environment_temperatures.iter().enumerate() {
+            let labels = SensorLabels {
+                battery: serial.clone(),
+                sensor: (i + 1).to_string(),
+            };
+            self.environment_temperature
+                .get_or_create(&labels)
+                .set(temp as f64);
+        }
+
+        for (i, &temp) in info.heater_temperatures.iter().enumerate() {
+            let labels = SensorLabels {
+                battery: serial.clone(),
+                sensor: (i + 1).to_string(),
+            };
+            self.heater_temperature
+                .get_or_create(&labels)
+                .set(temp as f64);
+        }
+
         self.module_voltage
             .get_or_create(&battery_labels)
             .set(info.module_voltage as f64);
@@ -115,10 +255,82 @@ impl PrometheusMetrics {
         self.cycle_count
             .get_or_create(&battery_labels)
             .set(info.cycle_count as f64);
+
+        if let Some(limit) = info.charge_voltage_limit {
+            self.charge_voltage_limit
+                .get_or_create(&battery_labels)
+                .set(limit as f64);
+        }
+        if let Some(limit) = info.discharge_voltage_limit {
+            self.discharge_voltage_limit
+                .get_or_create(&battery_labels)
+                .set(limit as f64);
+        }
+        if let Some(limit) = info.charge_current_limit {
+            self.charge_current_limit
+                .get_or_create(&battery_labels)
+                .set(limit as f64);
+        }
+        if let Some(limit) = info.discharge_current_limit {
+            self.discharge_current_limit
+                .get_or_create(&battery_labels)
+                .set(limit as f64);
+        }
+
+        if let Some(s) = info.status1 {
+            self.status1
+                .get_or_create(&battery_labels)
+                .set(s.bits() as f64);
+            self.charge_mosfet_on
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(s.contains(Status1::CHARGE_MOSFET)));
+            self.discharge_mosfet_on
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(s.contains(Status1::DISCHARGE_MOSFET)));
+        }
+
+        if let Some(s) = info.status2 {
+            self.status2
+                .get_or_create(&battery_labels)
+                .set(s.bits() as f64);
+            self.fully_charged
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(s.contains(Status2::FULLY_CHARGED)));
+            self.heater_on
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(s.contains(Status2::HEATER_ON)));
+        }
+
+        if let Some(s) = info.status3 {
+            self.status3
+                .get_or_create(&battery_labels)
+                .set(s.bits() as f64);
+        }
+
+        if let Some(s) = info.other_alarm_info {
+            self.other_alarm_info
+                .get_or_create(&battery_labels)
+                .set(s.bits() as f64);
+        }
+
+        if let Some(s) = info.charge_discharge_status {
+            self.charge_enabled
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(
+                    s.contains(ChargeDischargeStatus::CHARGE_ENABLE),
+                ));
+            self.discharge_enabled
+                .get_or_create(&battery_labels)
+                .set(bool_to_f64(
+                    s.contains(ChargeDischargeStatus::DISCHARGE_ENABLE),
+                ));
+        }
     }
 }
 
 pub fn batch_to_influx(samples: &[BatteryInfo]) -> String {
+    use crate::{ChargeDischargeStatus, Status1, Status2};
+
     macro_rules! measurement {
         ($b:expr, $name:expr, $serial:expr, $value:expr, $ts:expr) => {
             $b.measurement($name)
@@ -134,6 +346,17 @@ pub fn batch_to_influx(samples: &[BatteryInfo]) -> String {
             $b.measurement($name)
                 .tag("battery", $serial)
                 .tag("cell", $cell)
+                .field("value", $value)
+                .timestamp($ts)
+                .close_line()
+        };
+    }
+
+    macro_rules! sensor_measurement {
+        ($b:expr, $name:expr, $serial:expr, $sensor:expr, $value:expr, $ts:expr) => {
+            $b.measurement($name)
+                .tag("battery", $serial)
+                .tag("sensor", $sensor)
                 .field("value", $value)
                 .timestamp($ts)
                 .close_line()
@@ -165,6 +388,34 @@ pub fn batch_to_influx(samples: &[BatteryInfo]) -> String {
                 "renogy_cell_temperature",
                 serial,
                 &cell,
+                temp as f64,
+                ts
+            );
+        }
+
+        if let Some(temp) = info.bms_temperature {
+            builder = measurement!(builder, "renogy_bms_temperature", serial, temp as f64, ts);
+        }
+
+        for (i, &temp) in info.environment_temperatures.iter().enumerate() {
+            let sensor = (i + 1).to_string();
+            builder = sensor_measurement!(
+                builder,
+                "renogy_environment_temperature",
+                serial,
+                &sensor,
+                temp as f64,
+                ts
+            );
+        }
+
+        for (i, &temp) in info.heater_temperatures.iter().enumerate() {
+            let sensor = (i + 1).to_string();
+            builder = sensor_measurement!(
+                builder,
+                "renogy_heater_temperature",
+                serial,
+                &sensor,
                 temp as f64,
                 ts
             );
@@ -206,6 +457,110 @@ pub fn batch_to_influx(samples: &[BatteryInfo]) -> String {
             info.cycle_count as f64,
             ts
         );
+
+        if let Some(limit) = info.charge_voltage_limit {
+            builder = measurement!(
+                builder,
+                "renogy_charge_voltage_limit",
+                serial,
+                limit as f64,
+                ts
+            );
+        }
+        if let Some(limit) = info.discharge_voltage_limit {
+            builder = measurement!(
+                builder,
+                "renogy_discharge_voltage_limit",
+                serial,
+                limit as f64,
+                ts
+            );
+        }
+        if let Some(limit) = info.charge_current_limit {
+            builder = measurement!(
+                builder,
+                "renogy_charge_current_limit",
+                serial,
+                limit as f64,
+                ts
+            );
+        }
+        if let Some(limit) = info.discharge_current_limit {
+            builder = measurement!(
+                builder,
+                "renogy_discharge_current_limit",
+                serial,
+                limit as f64,
+                ts
+            );
+        }
+
+        if let Some(s) = info.status1 {
+            builder = measurement!(builder, "renogy_status1", serial, s.bits() as f64, ts);
+            builder = measurement!(
+                builder,
+                "renogy_charge_mosfet_on",
+                serial,
+                bool_to_f64(s.contains(Status1::CHARGE_MOSFET)),
+                ts
+            );
+            builder = measurement!(
+                builder,
+                "renogy_discharge_mosfet_on",
+                serial,
+                bool_to_f64(s.contains(Status1::DISCHARGE_MOSFET)),
+                ts
+            );
+        }
+
+        if let Some(s) = info.status2 {
+            builder = measurement!(builder, "renogy_status2", serial, s.bits() as f64, ts);
+            builder = measurement!(
+                builder,
+                "renogy_fully_charged",
+                serial,
+                bool_to_f64(s.contains(Status2::FULLY_CHARGED)),
+                ts
+            );
+            builder = measurement!(
+                builder,
+                "renogy_heater_on",
+                serial,
+                bool_to_f64(s.contains(Status2::HEATER_ON)),
+                ts
+            );
+        }
+
+        if let Some(s) = info.status3 {
+            builder = measurement!(builder, "renogy_status3", serial, s.bits() as f64, ts);
+        }
+
+        if let Some(s) = info.other_alarm_info {
+            builder = measurement!(
+                builder,
+                "renogy_other_alarm_info",
+                serial,
+                s.bits() as f64,
+                ts
+            );
+        }
+
+        if let Some(s) = info.charge_discharge_status {
+            builder = measurement!(
+                builder,
+                "renogy_charge_enabled",
+                serial,
+                bool_to_f64(s.contains(ChargeDischargeStatus::CHARGE_ENABLE)),
+                ts
+            );
+            builder = measurement!(
+                builder,
+                "renogy_discharge_enabled",
+                serial,
+                bool_to_f64(s.contains(ChargeDischargeStatus::DISCHARGE_ENABLE)),
+                ts
+            );
+        }
     }
 
     String::from_utf8(builder.build()).expect("line protocol should be valid UTF-8")
