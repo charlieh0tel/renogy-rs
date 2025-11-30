@@ -66,6 +66,62 @@ impl Value {
             _ => None,
         }
     }
+
+    #[must_use]
+    pub fn as_status1(&self) -> Option<Status1> {
+        match self {
+            Value::Status1(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_status2(&self) -> Option<Status2> {
+        match self {
+            Value::Status2(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_status3(&self) -> Option<Status3> {
+        match self {
+            Value::Status3(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_other_alarm_info(&self) -> Option<OtherAlarmInfo> {
+        match self {
+            Value::OtherAlarmInfo(o) => Some(*o),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_cell_voltage_alarms(&self) -> Option<CellVoltageAlarms> {
+        match self {
+            Value::CellVoltageAlarms(a) => Some(*a),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_cell_temperature_alarms(&self) -> Option<CellTemperatureAlarms> {
+        match self {
+            Value::CellTemperatureAlarms(a) => Some(*a),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_charge_discharge_status(&self) -> Option<ChargeDischargeStatus> {
+        match self {
+            Value::ChargeDischargeStatus(s) => Some(*s),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

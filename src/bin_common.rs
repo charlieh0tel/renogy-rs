@@ -1,4 +1,4 @@
-use renogy_rs::BatteryInfo;
+use renogy_rs::{BatteryInfo, Status1, Status2};
 
 #[allow(dead_code)]
 pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
@@ -32,7 +32,43 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
     } else {
         println!("  Cycles: {}", info.cycle_count);
     }
+
+    print_temperatures(info);
+    print_limits(info);
     println!();
+    print_cell_voltages(info);
+    print_status(info);
+}
+
+fn print_temperatures(info: &BatteryInfo) {
+    let mut temps = Vec::new();
+    if let Some(t) = info.bms_temperature {
+        temps.push(format!("BMS: {:.1}°C", t));
+    }
+    for (i, t) in info.environment_temperatures.iter().enumerate() {
+        temps.push(format!("Env{}: {:.1}°C", i + 1, t));
+    }
+    for (i, t) in info.heater_temperatures.iter().enumerate() {
+        temps.push(format!("Heater{}: {:.1}°C", i + 1, t));
+    }
+    if !temps.is_empty() {
+        println!("  Other Temps: {}", temps.join("  "));
+    }
+}
+
+fn print_limits(info: &BatteryInfo) {
+    if let (Some(cv), Some(dv)) = (info.charge_voltage_limit, info.discharge_voltage_limit) {
+        println!(
+            "  Limits: Voltage {:.1}-{:.1}V  Current {:.2}/{:.2}A",
+            dv,
+            cv,
+            info.charge_current_limit.unwrap_or(0.0),
+            info.discharge_current_limit.unwrap_or(0.0)
+        );
+    }
+}
+
+fn print_cell_voltages(info: &BatteryInfo) {
     println!("  Cell Voltages ({} cells):", info.cell_count);
     for (i, voltage) in info.cell_voltages.iter().enumerate() {
         if i % 4 == 0 {
@@ -57,6 +93,90 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
             max,
             (max - min) * 1000.0
         );
+    }
+    println!();
+}
+
+fn print_status(info: &BatteryInfo) {
+    if let Some(status) = info.charge_discharge_status {
+        let flags: Vec<_> = status.iter_names().map(|(name, _)| name).collect();
+        if !flags.is_empty() {
+            println!("  Charge/Discharge: {}", flags.join(", "));
+        }
+    }
+
+    if let Some(s1) = info.status1 {
+        println!(
+            "  MOSFETs: Charge={} Discharge={}",
+            if s1.contains(Status1::CHARGE_MOSFET) {
+                "ON"
+            } else {
+                "OFF"
+            },
+            if s1.contains(Status1::DISCHARGE_MOSFET) {
+                "ON"
+            } else {
+                "OFF"
+            }
+        );
+    }
+
+    if let Some(s2) = info.status2 {
+        if s2.contains(Status2::FULLY_CHARGED) {
+            println!("  State: FULLY CHARGED");
+        }
+        if s2.contains(Status2::HEATER_ON) {
+            println!("  Heater: ON");
+        }
+    }
+
+    print_alarms(info);
+}
+
+fn print_alarms(info: &BatteryInfo) {
+    let mut alarms = Vec::new();
+
+    if let Some(s1) = info.status1 {
+        let skip = Status1::CHARGE_MOSFET
+            | Status1::DISCHARGE_MOSFET
+            | Status1::USING_BATTERY_MODULE_POWER;
+        for (name, flag) in s1.iter_names() {
+            if !skip.contains(flag) {
+                alarms.push(name);
+            }
+        }
+    }
+
+    if let Some(s2) = info.status2 {
+        let skip = Status2::EFFECTIVE_CHARGE_CURRENT
+            | Status2::EFFECTIVE_DISCHARGE_CURRENT
+            | Status2::HEATER_ON
+            | Status2::FULLY_CHARGED;
+        for (name, flag) in s2.iter_names() {
+            if !skip.contains(flag) {
+                alarms.push(name);
+            }
+        }
+    }
+
+    if let Some(s3) = info.status3 {
+        for (name, _) in s3.iter_names() {
+            alarms.push(name);
+        }
+    }
+
+    if let Some(other) = info.other_alarm_info {
+        for (name, _) in other.iter_names() {
+            alarms.push(name);
+        }
+    }
+
+    if !alarms.is_empty() {
+        println!();
+        println!("  *** ALARMS ***");
+        for alarm in alarms {
+            println!("    - {}", alarm);
+        }
     }
     println!();
 }

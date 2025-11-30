@@ -1,3 +1,7 @@
+use crate::alarm::{
+    CellTemperatureAlarms, CellVoltageAlarms, ChargeDischargeStatus, OtherAlarmInfo, Status1,
+    Status2, Status3,
+};
 use crate::registers::{Register, Value};
 use crate::transport::Transport;
 use chrono::{DateTime, Utc};
@@ -15,12 +19,26 @@ pub struct BatteryInfo {
     pub cell_count: u32,
     pub cell_voltages: Vec<f32>,
     pub cell_temperatures: Vec<f32>,
+    pub bms_temperature: Option<f32>,
+    pub environment_temperatures: Vec<f32>,
+    pub heater_temperatures: Vec<f32>,
     pub module_voltage: f32,
     pub current: f32,
     pub remaining_capacity: f32,
     pub total_capacity: f32,
     pub soc_percent: f32,
     pub cycle_count: u32,
+    pub charge_voltage_limit: Option<f32>,
+    pub discharge_voltage_limit: Option<f32>,
+    pub charge_current_limit: Option<f32>,
+    pub discharge_current_limit: Option<f32>,
+    pub status1: Option<Status1>,
+    pub status2: Option<Status2>,
+    pub status3: Option<Status3>,
+    pub other_alarm_info: Option<OtherAlarmInfo>,
+    pub cell_voltage_alarms: Option<CellVoltageAlarms>,
+    pub cell_temperature_alarms: Option<CellTemperatureAlarms>,
+    pub charge_discharge_status: Option<ChargeDischargeStatus>,
 }
 
 pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<BatteryInfo> {
@@ -79,6 +97,47 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
         }
     }
 
+    let bms_temperature = read_temperature(transport, addr, Register::BmsTemperature).await;
+
+    let env_temp_count = read_integer(transport, addr, Register::EnvironmentTemperatureCount)
+        .await
+        .unwrap_or(0);
+    let mut environment_temperatures = Vec::with_capacity(env_temp_count.min(2) as usize);
+    for i in 1..=env_temp_count.min(2) {
+        if let Some(t) =
+            read_temperature(transport, addr, Register::EnvironmentTemperature(i as u8)).await
+        {
+            environment_temperatures.push(t);
+        }
+    }
+
+    let heater_temp_count = read_integer(transport, addr, Register::HeaterTemperatureCount)
+        .await
+        .unwrap_or(0);
+    let mut heater_temperatures = Vec::with_capacity(heater_temp_count.min(2) as usize);
+    for i in 1..=heater_temp_count.min(2) {
+        if let Some(t) =
+            read_temperature(transport, addr, Register::HeaterTemperature(i as u8)).await
+        {
+            heater_temperatures.push(t);
+        }
+    }
+
+    let charge_voltage_limit = read_voltage(transport, addr, Register::ChargeVoltageLimit).await;
+    let discharge_voltage_limit =
+        read_voltage(transport, addr, Register::DischargeVoltageLimit).await;
+    let charge_current_limit = read_current(transport, addr, Register::ChargeCurrentLimit).await;
+    let discharge_current_limit =
+        read_current(transport, addr, Register::DischargeCurrentLimit).await;
+
+    let status1 = read_status1(transport, addr).await;
+    let status2 = read_status2(transport, addr).await;
+    let status3 = read_status3(transport, addr).await;
+    let other_alarm_info = read_other_alarm_info(transport, addr).await;
+    let cell_voltage_alarms = read_cell_voltage_alarms(transport, addr).await;
+    let cell_temperature_alarms = read_cell_temperature_alarms(transport, addr).await;
+    let charge_discharge_status = read_charge_discharge_status(transport, addr).await;
+
     Some(BatteryInfo {
         timestamp: Utc::now(),
         serial,
@@ -88,12 +147,26 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
         cell_count,
         cell_voltages,
         cell_temperatures,
+        bms_temperature,
+        environment_temperatures,
+        heater_temperatures,
         module_voltage,
         current,
         remaining_capacity,
         total_capacity,
         soc_percent,
         cycle_count,
+        charge_voltage_limit,
+        discharge_voltage_limit,
+        charge_current_limit,
+        discharge_current_limit,
+        status1,
+        status2,
+        status3,
+        other_alarm_info,
+        cell_voltage_alarms,
+        cell_temperature_alarms,
+        charge_discharge_status,
     })
 }
 
@@ -159,4 +232,58 @@ async fn read_temperature<T: Transport>(
         .await?
         .as_temperature()
         .map(|t| t.get::<degree_celsius>())
+}
+
+async fn read_status1<T: Transport>(transport: &mut T, addr: u8) -> Option<Status1> {
+    read_register(transport, addr, Register::Status1)
+        .await?
+        .as_status1()
+}
+
+async fn read_status2<T: Transport>(transport: &mut T, addr: u8) -> Option<Status2> {
+    read_register(transport, addr, Register::Status2)
+        .await?
+        .as_status2()
+}
+
+async fn read_status3<T: Transport>(transport: &mut T, addr: u8) -> Option<Status3> {
+    read_register(transport, addr, Register::Status3)
+        .await?
+        .as_status3()
+}
+
+async fn read_other_alarm_info<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+) -> Option<OtherAlarmInfo> {
+    read_register(transport, addr, Register::OtherAlarmInfo)
+        .await?
+        .as_other_alarm_info()
+}
+
+async fn read_cell_voltage_alarms<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+) -> Option<CellVoltageAlarms> {
+    read_register(transport, addr, Register::CellVoltageAlarmInfo)
+        .await?
+        .as_cell_voltage_alarms()
+}
+
+async fn read_cell_temperature_alarms<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+) -> Option<CellTemperatureAlarms> {
+    read_register(transport, addr, Register::CellTemperatureAlarmInfo)
+        .await?
+        .as_cell_temperature_alarms()
+}
+
+async fn read_charge_discharge_status<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+) -> Option<ChargeDischargeStatus> {
+    read_register(transport, addr, Register::ChargeDischargeStatus)
+        .await?
+        .as_charge_discharge_status()
 }
