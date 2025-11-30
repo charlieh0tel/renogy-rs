@@ -1,15 +1,26 @@
 use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RenogyError {
+    #[error("invalid data")]
     InvalidData,
+    #[error("CRC mismatch")]
     CrcMismatch,
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Modbus exception: {0}")]
     ModbusException(ModbusExceptionCode),
+    #[error("unsupported operation")]
     UnsupportedOperation,
+    #[error("device control operation failed")]
     DeviceControlFailed,
+    #[error("invalid register address or range")]
     InvalidRegisterRange,
+    #[error("write operation failed")]
     WriteOperationFailed,
+    #[error("Bluetooth error: {0}")]
+    Bluetooth(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,21 +34,6 @@ pub enum ModbusExceptionCode {
     MemoryParityError = 0x08,
     GatewayPathUnavailable = 0x0A,
     GatewayTargetDeviceFailedToRespond = 0x0B,
-}
-
-impl fmt::Display for RenogyError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RenogyError::InvalidData => write!(f, "Invalid data"),
-            RenogyError::CrcMismatch => write!(f, "CRC mismatch"),
-            RenogyError::Io(e) => write!(f, "IO error: {e}"),
-            RenogyError::ModbusException(code) => write!(f, "Modbus exception: {code}"),
-            RenogyError::UnsupportedOperation => write!(f, "Unsupported operation"),
-            RenogyError::DeviceControlFailed => write!(f, "Device control operation failed"),
-            RenogyError::InvalidRegisterRange => write!(f, "Invalid register address or range"),
-            RenogyError::WriteOperationFailed => write!(f, "Write operation failed"),
-        }
-    }
 }
 
 impl fmt::Display for ModbusExceptionCode {
@@ -78,23 +74,15 @@ impl ModbusExceptionCode {
     }
 }
 
-impl std::error::Error for RenogyError {}
-
-impl From<std::io::Error> for RenogyError {
-    fn from(err: std::io::Error) -> RenogyError {
-        RenogyError::Io(err)
-    }
-}
-
 impl From<zbus::Error> for RenogyError {
     fn from(err: zbus::Error) -> RenogyError {
-        RenogyError::Io(std::io::Error::other(err.to_string()))
+        RenogyError::Bluetooth(err.to_string())
     }
 }
 
 impl From<zbus::fdo::Error> for RenogyError {
     fn from(err: zbus::fdo::Error) -> RenogyError {
-        RenogyError::Io(std::io::Error::other(err.to_string()))
+        RenogyError::Bluetooth(err.to_string())
     }
 }
 

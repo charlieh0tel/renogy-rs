@@ -18,17 +18,10 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
         "  Capacity: {:.1} / {:.1} Ah ({:.1}%)",
         info.remaining_capacity, info.total_capacity, info.soc_percent
     );
-    if !info.cell_temperatures.is_empty() {
-        let min_temp = info
-            .cell_temperatures
-            .iter()
-            .cloned()
-            .fold(f32::INFINITY, f32::min);
-        let max_temp = info
-            .cell_temperatures
-            .iter()
-            .cloned()
-            .fold(f32::NEG_INFINITY, f32::max);
+    if let (Some(min_temp), Some(max_temp)) = (
+        info.cell_temperatures.iter().copied().reduce(f32::min),
+        info.cell_temperatures.iter().copied().reduce(f32::max),
+    ) {
         println!(
             "  Cycles: {}    Temp: {:.1}-{:.1} °C ({} sensors)",
             info.cycle_count,
@@ -54,17 +47,10 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
         println!();
     }
 
-    if !info.cell_voltages.is_empty() {
-        let min = info
-            .cell_voltages
-            .iter()
-            .cloned()
-            .fold(f32::INFINITY, f32::min);
-        let max = info
-            .cell_voltages
-            .iter()
-            .cloned()
-            .fold(f32::NEG_INFINITY, f32::max);
+    if let (Some(min), Some(max)) = (
+        info.cell_voltages.iter().copied().reduce(f32::min),
+        info.cell_voltages.iter().copied().reduce(f32::max),
+    ) {
         println!(
             "    Min: {:.3}V  Max: {:.3}V  Delta: {:.0}mV",
             min,

@@ -73,6 +73,12 @@ impl SerialTransport {
     pub fn slave_id(&self) -> u8 {
         self.slave_id
     }
+
+    fn ensure_slave(&mut self, slave: u8) {
+        if slave != self.slave_id {
+            self.set_slave(slave);
+        }
+    }
 }
 
 impl Transport for SerialTransport {
@@ -82,10 +88,7 @@ impl Transport for SerialTransport {
         addr: u16,
         quantity: u16,
     ) -> Result<Vec<u16>> {
-        if slave != self.slave_id {
-            self.set_slave(slave);
-        }
-
+        self.ensure_slave(slave);
         self.ctx
             .read_holding_registers(addr, quantity)
             .await
@@ -93,10 +96,7 @@ impl Transport for SerialTransport {
     }
 
     async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()> {
-        if slave != self.slave_id {
-            self.set_slave(slave);
-        }
-
+        self.ensure_slave(slave);
         self.ctx
             .write_single_register(addr, value)
             .await
@@ -109,10 +109,7 @@ impl Transport for SerialTransport {
         addr: u16,
         values: &[u16],
     ) -> Result<()> {
-        if slave != self.slave_id {
-            self.set_slave(slave);
-        }
-
+        self.ensure_slave(slave);
         self.ctx
             .write_multiple_registers(addr, values)
             .await
@@ -122,10 +119,7 @@ impl Transport for SerialTransport {
     async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>> {
         use tokio_modbus::prelude::Request;
 
-        if slave != self.slave_id {
-            self.set_slave(slave);
-        }
-
+        self.ensure_slave(slave);
         let request = Request::Custom(function_code, data.to_vec());
         let response = self.ctx.call(request).await.map_err(io_to_renogy_error)?;
 

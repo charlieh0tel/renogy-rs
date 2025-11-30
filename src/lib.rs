@@ -1,5 +1,7 @@
 pub mod alarm;
+pub mod any_transport;
 pub mod bt2;
+pub mod collector;
 pub mod device;
 pub mod error;
 pub mod pdu;
@@ -10,6 +12,7 @@ pub mod transport;
 pub mod tui;
 
 pub use alarm::*;
+pub use any_transport::{AnyTransport, BT2_SCAN_RANGE, SERIAL_SCAN_RANGE};
 pub use bt2::{BT2_NAME_PREFIX, Bt2Transport, discover_bt2_devices};
 pub use device::{AcpConfig, DeviceCommand, DeviceInfo, PowerSettings};
 pub use error::{ModbusExceptionCode, RenogyError, Result};

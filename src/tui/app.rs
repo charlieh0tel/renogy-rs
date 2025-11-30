@@ -19,8 +19,9 @@ pub const ZOOM_LEVELS: &[(u64, &str)] = &[
     (3600, "1 hour"),
     (14400, "4 hours"),
     (43200, "12 hours"),
-    (86400, "24 hours"),
-    (172800, "48 hours"),
+    (86400, "1 day"),
+    (172800, "2 days"),
+    (604800, "7 days"),
 ];
 
 #[derive(Clone, Serialize, Deserialize)]

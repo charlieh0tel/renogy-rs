@@ -73,9 +73,9 @@ impl Bt2Transport {
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        Err(RenogyError::Io(std::io::Error::other(
-            "Timeout waiting for services to resolve",
-        )))
+        Err(RenogyError::Bluetooth(
+            "timeout waiting for services to resolve".into(),
+        ))
     }
 
     async fn find_characteristics(
@@ -119,7 +119,7 @@ impl Bt2Transport {
 
         write_path
             .zip(notify_path)
-            .ok_or_else(|| RenogyError::Io(std::io::Error::other("BT-2 characteristics not found")))
+            .ok_or_else(|| RenogyError::Bluetooth("BT-2 characteristics not found".into()))
     }
 
     fn spawn_notification_listener(
@@ -182,8 +182,8 @@ impl Bt2Transport {
 
         let response = timeout(self.timeout, self.notify_rx.recv())
             .await
-            .map_err(|_| RenogyError::Io(std::io::Error::other("Timeout waiting for response")))?
-            .ok_or_else(|| RenogyError::Io(std::io::Error::other("Notification channel closed")))?;
+            .map_err(|_| RenogyError::Bluetooth("timeout waiting for response".into()))?
+            .ok_or_else(|| RenogyError::Bluetooth("notification channel closed".into()))?;
 
         Pdu::deserialize(&response)
     }

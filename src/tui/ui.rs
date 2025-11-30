@@ -23,11 +23,8 @@ fn soc_bar(soc: f32, width: usize) -> String {
 }
 
 fn min_max(values: &[f32]) -> Option<(f32, f32)> {
-    if values.is_empty() {
-        return None;
-    }
-    let min = values.iter().cloned().fold(f32::MAX, f32::min);
-    let max = values.iter().cloned().fold(f32::MIN, f32::max);
+    let min = values.iter().copied().reduce(f32::min)?;
+    let max = values.iter().copied().reduce(f32::max)?;
     Some((min, max))
 }
 
