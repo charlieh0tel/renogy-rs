@@ -59,6 +59,16 @@ impl History {
         self.data.push_back(point);
     }
 
+    pub fn replace(&mut self, points: Vec<DataPoint>) {
+        self.data.clear();
+        for point in points {
+            if self.data.len() >= self.max_points {
+                break;
+            }
+            self.data.push_back(point);
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &DataPoint> {
         self.data.iter()
     }

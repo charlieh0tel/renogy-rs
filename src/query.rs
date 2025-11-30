@@ -1,11 +1,13 @@
-use crate::error::Result;
 use crate::registers::{Register, Value};
 use crate::transport::Transport;
+use chrono::{DateTime, Utc};
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
+#[derive(Clone, Debug)]
 pub struct BatteryInfo {
+    pub timestamp: DateTime<Utc>,
     pub serial: String,
     pub model: String,
     pub software_version: String,
@@ -22,60 +24,38 @@ pub struct BatteryInfo {
 }
 
 pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<BatteryInfo> {
-    let serial = match read_register(transport, addr, Register::SnNumber).await {
-        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
-        _ => return None,
-    };
+    let serial = read_string(transport, addr, Register::SnNumber).await?;
+    let model = read_string(transport, addr, Register::BatteryName)
+        .await
+        .unwrap_or_default();
+    let software_version = read_string(transport, addr, Register::SoftwareVersion)
+        .await
+        .unwrap_or_default();
+    let manufacturer = read_string(transport, addr, Register::ManufacturerName)
+        .await
+        .unwrap_or_default();
 
-    let model = match read_register(transport, addr, Register::BatteryName).await {
-        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
-        _ => String::new(),
-    };
+    let cell_count = read_integer(transport, addr, Register::CellCount).await?;
 
-    let software_version = match read_register(transport, addr, Register::SoftwareVersion).await {
-        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
-        _ => String::new(),
-    };
-
-    let manufacturer = match read_register(transport, addr, Register::ManufacturerName).await {
-        Ok(Value::String(s)) => s.trim_matches('\0').to_string(),
-        _ => String::new(),
-    };
-
-    let cell_count = match read_register(transport, addr, Register::CellCount).await {
-        Ok(Value::Integer(n)) => n,
-        _ => return None,
-    };
-
-    let mut cell_voltages = Vec::new();
+    let mut cell_voltages = Vec::with_capacity(cell_count.min(16) as usize);
     for i in 1..=cell_count.min(16) {
-        if let Ok(Value::ElectricPotential(v)) =
-            read_register(transport, addr, Register::CellVoltage(i as u8)).await
-        {
-            cell_voltages.push(v.get::<volt>());
+        if let Some(v) = read_voltage(transport, addr, Register::CellVoltage(i as u8)).await {
+            cell_voltages.push(v);
         }
     }
 
-    let module_voltage = match read_register(transport, addr, Register::ModuleVoltage).await {
-        Ok(Value::ElectricPotential(v)) => v.get::<volt>(),
-        _ => 0.0,
-    };
-
-    let current = match read_register(transport, addr, Register::Current).await {
-        Ok(Value::ElectricCurrent(c)) => c.get::<ampere>(),
-        _ => 0.0,
-    };
-
-    let remaining_capacity = match read_register(transport, addr, Register::RemainingCapacity).await
-    {
-        Ok(Value::ElectricCurrent(c)) => c.get::<ampere>(),
-        _ => 0.0,
-    };
-
-    let total_capacity = match read_register(transport, addr, Register::TotalCapacity).await {
-        Ok(Value::ElectricCurrent(c)) => c.get::<ampere>(),
-        _ => 0.0,
-    };
+    let module_voltage = read_voltage(transport, addr, Register::ModuleVoltage)
+        .await
+        .unwrap_or(0.0);
+    let current = read_current(transport, addr, Register::Current)
+        .await
+        .unwrap_or(0.0);
+    let remaining_capacity = read_current(transport, addr, Register::RemainingCapacity)
+        .await
+        .unwrap_or(0.0);
+    let total_capacity = read_current(transport, addr, Register::TotalCapacity)
+        .await
+        .unwrap_or(0.0);
 
     let soc_percent = if total_capacity > 0.0 {
         (remaining_capacity / total_capacity) * 100.0
@@ -83,27 +63,24 @@ pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<
         0.0
     };
 
-    let cycle_count = match read_register(transport, addr, Register::CycleNumber).await {
-        Ok(Value::Integer(n)) => n,
-        _ => 0,
-    };
+    let cycle_count = read_integer(transport, addr, Register::CycleNumber)
+        .await
+        .unwrap_or(0);
 
-    let cell_temp_count = match read_register(transport, addr, Register::CellTemperatureCount).await
-    {
-        Ok(Value::Integer(n)) => n,
-        _ => 0,
-    };
+    let cell_temp_count = read_integer(transport, addr, Register::CellTemperatureCount)
+        .await
+        .unwrap_or(0);
 
-    let mut cell_temperatures = Vec::new();
+    let mut cell_temperatures = Vec::with_capacity(cell_temp_count.min(16) as usize);
     for i in 1..=cell_temp_count.min(16) {
-        if let Ok(Value::ThermodynamicTemperature(t)) =
-            read_register(transport, addr, Register::CellTemperature(i as u8)).await
+        if let Some(t) = read_temperature(transport, addr, Register::CellTemperature(i as u8)).await
         {
-            cell_temperatures.push(t.get::<degree_celsius>());
+            cell_temperatures.push(t);
         }
     }
 
     Some(BatteryInfo {
+        timestamp: Utc::now(),
         serial,
         model,
         software_version,
@@ -124,9 +101,62 @@ async fn read_register<T: Transport>(
     transport: &mut T,
     addr: u8,
     register: Register,
-) -> Result<Value> {
+) -> Option<Value> {
     let regs = transport
         .read_holding_registers(addr, register.address(), register.quantity())
-        .await?;
-    Ok(register.parse_registers(&regs))
+        .await
+        .ok()?;
+    Some(register.parse_registers(&regs))
+}
+
+async fn read_string<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+    register: Register,
+) -> Option<String> {
+    read_register(transport, addr, register)
+        .await?
+        .as_string()
+        .map(|s| s.trim_matches('\0').to_string())
+}
+
+async fn read_integer<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+    register: Register,
+) -> Option<u32> {
+    read_register(transport, addr, register).await?.as_integer()
+}
+
+async fn read_voltage<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+    register: Register,
+) -> Option<f32> {
+    read_register(transport, addr, register)
+        .await?
+        .as_voltage()
+        .map(|v| v.get::<volt>())
+}
+
+async fn read_current<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+    register: Register,
+) -> Option<f32> {
+    read_register(transport, addr, register)
+        .await?
+        .as_current()
+        .map(|c| c.get::<ampere>())
+}
+
+async fn read_temperature<T: Transport>(
+    transport: &mut T,
+    addr: u8,
+    register: Register,
+) -> Option<f32> {
+    read_register(transport, addr, register)
+        .await?
+        .as_temperature()
+        .map(|t| t.get::<degree_celsius>())
 }

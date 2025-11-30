@@ -26,6 +26,48 @@ pub enum Value {
     String(String),
 }
 
+impl Value {
+    #[must_use]
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_integer(&self) -> Option<u32> {
+        match self {
+            Value::Integer(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_voltage(&self) -> Option<ElectricPotential> {
+        match self {
+            Value::ElectricPotential(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_current(&self) -> Option<ElectricCurrent> {
+        match self {
+            Value::ElectricCurrent(c) => Some(*c),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn as_temperature(&self) -> Option<ThermodynamicTemperature> {
+        match self {
+            Value::ThermodynamicTemperature(t) => Some(*t),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Register {
     CellCount,
