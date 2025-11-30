@@ -507,7 +507,7 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         .max()
         .unwrap_or(4);
 
-    draw_single_chart(
+    draw_single_chart_with_zero_line(
         frame,
         chunks[0],
         "Current (A)",
@@ -518,6 +518,7 @@ fn draw_graphs(frame: &mut Frame, app: &App, area: Rect) {
         Color::Green,
         current_bounds,
         y_label_width,
+        true,
     );
 
     draw_single_chart(
@@ -669,6 +670,35 @@ fn draw_single_chart(
     y_bounds: [f64; 2],
     y_label_width: usize,
 ) {
+    draw_single_chart_with_zero_line(
+        frame,
+        area,
+        title,
+        zoom_label,
+        data,
+        view_start,
+        view_end,
+        color,
+        y_bounds,
+        y_label_width,
+        false,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_single_chart_with_zero_line(
+    frame: &mut Frame,
+    area: Rect,
+    title: &str,
+    zoom_label: &str,
+    data: &[(f64, f64)],
+    view_start: u64,
+    view_end: u64,
+    color: Color,
+    y_bounds: [f64; 2],
+    y_label_width: usize,
+    show_zero_line: bool,
+) {
     let x_labels = format_time_axis_labels(view_start, view_end);
 
     let block_title = if zoom_label.is_empty() {
@@ -677,13 +707,25 @@ fn draw_single_chart(
         format!(" {} [{}] ", title, zoom_label)
     };
 
-    let datasets = vec![
+    let mut datasets = vec![
         Dataset::default()
             .marker(Marker::Braille)
             .graph_type(GraphType::Line)
             .style(Style::default().fg(color))
             .data(data),
     ];
+
+    let zero_line_data: Vec<(f64, f64)>;
+    if show_zero_line && y_bounds[0] < 0.0 && y_bounds[1] > 0.0 {
+        zero_line_data = vec![(view_start as f64, 0.0), (view_end as f64, 0.0)];
+        datasets.push(
+            Dataset::default()
+                .marker(Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default().fg(Color::DarkGray))
+                .data(&zero_line_data),
+        );
+    }
 
     let chart = Chart::new(datasets)
         .block(Block::default().borders(Borders::ALL).title(block_title))
