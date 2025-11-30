@@ -36,52 +36,67 @@ impl VmClient {
     }
 
     pub async fn query_latest(&self, battery: &str) -> Result<Option<BatteryInfo>, String> {
-        let module_voltage = self
-            .query_instant_value(&format!(
-                "renogy_module_voltage_value{{battery=\"{}\"}}",
-                battery
-            ))
-            .await?;
-        let current = self
-            .query_instant_value(&format!("renogy_current_value{{battery=\"{}\"}}", battery))
-            .await?;
-        let soc_percent = self
-            .query_instant_value(&format!(
-                "renogy_soc_percent_value{{battery=\"{}\"}}",
-                battery
-            ))
-            .await?;
-        let remaining_capacity = self
-            .query_instant_value(&format!(
-                "renogy_remaining_capacity_ah_value{{battery=\"{}\"}}",
-                battery
-            ))
-            .await?;
-        let total_capacity = self
-            .query_instant_value(&format!(
-                "renogy_total_capacity_ah_value{{battery=\"{}\"}}",
-                battery
-            ))
-            .await?;
-        let cycle_count = self
-            .query_instant_value(&format!(
-                "renogy_cycle_count_value{{battery=\"{}\"}}",
-                battery
-            ))
-            .await?;
+        let query = format!("{{battery=\"{}\",__name__=~\"renogy_.*_value\"}}", battery);
+        let response = self
+            .client
+            .query(query)
+            .get()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let Some(samples) = response.data().as_vector() else {
+            return Ok(None);
+        };
+
+        if samples.is_empty() {
+            return Ok(None);
+        }
+
+        let mut module_voltage = None;
+        let mut current = None;
+        let mut soc_percent = None;
+        let mut remaining_capacity = None;
+        let mut total_capacity = None;
+        let mut cycle_count = None;
+        let mut cell_voltages: Vec<(u32, f32)> = Vec::new();
+        let mut cell_temperatures: Vec<(u32, f32)> = Vec::new();
+
+        for sample in samples {
+            let value = sample.sample().value() as f32;
+            let metric_name = sample.metric().get("__name__").map(String::as_str);
+
+            match metric_name {
+                Some("renogy_module_voltage_value") => module_voltage = Some(value),
+                Some("renogy_current_value") => current = Some(value),
+                Some("renogy_soc_percent_value") => soc_percent = Some(value),
+                Some("renogy_remaining_capacity_ah_value") => remaining_capacity = Some(value),
+                Some("renogy_total_capacity_ah_value") => total_capacity = Some(value),
+                Some("renogy_cycle_count_value") => cycle_count = Some(value),
+                Some("renogy_cell_voltage_value") => {
+                    if let Some(cell) = sample.metric().get("cell").and_then(|c| c.parse().ok()) {
+                        cell_voltages.push((cell, value));
+                    }
+                }
+                Some("renogy_cell_temperature_value") => {
+                    if let Some(cell) = sample.metric().get("cell").and_then(|c| c.parse().ok()) {
+                        cell_temperatures.push((cell, value));
+                    }
+                }
+                _ => {}
+            }
+        }
 
         if module_voltage.is_none() && soc_percent.is_none() {
             return Ok(None);
         }
 
-        let cell_voltages = self
-            .query_cell_values(battery, "renogy_cell_voltage_value")
-            .await?;
-        let cell_temperatures = self
-            .query_cell_values(battery, "renogy_cell_temperature_value")
-            .await?;
+        cell_voltages.sort_by_key(|(n, _)| *n);
+        cell_temperatures.sort_by_key(|(n, _)| *n);
 
-        let info = BatteryInfo {
+        let cell_voltages: Vec<f32> = cell_voltages.into_iter().map(|(_, v)| v).collect();
+        let cell_temperatures: Vec<f32> = cell_temperatures.into_iter().map(|(_, v)| v).collect();
+
+        Ok(Some(BatteryInfo {
             serial: battery.to_string(),
             model: String::new(),
             software_version: String::new(),
@@ -96,51 +111,7 @@ impl VmClient {
             total_capacity: total_capacity.unwrap_or(0.0),
             cycle_count: cycle_count.unwrap_or(0.0) as u32,
             timestamp: chrono::Utc::now(),
-        };
-
-        Ok(Some(info))
-    }
-
-    async fn query_instant_value(&self, query: &str) -> Result<Option<f32>, String> {
-        let response = self
-            .client
-            .query(query)
-            .get()
-            .await
-            .map_err(|e| e.to_string())?;
-
-        if let Some(instant) = response.data().as_vector()
-            && let Some(sample) = instant.first()
-        {
-            return Ok(Some(sample.sample().value() as f32));
-        }
-
-        Ok(None)
-    }
-
-    async fn query_cell_values(&self, battery: &str, metric: &str) -> Result<Vec<f32>, String> {
-        let query = format!("{}{{battery=\"{}\"}}", metric, battery);
-        let response = self
-            .client
-            .query(query)
-            .get()
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let mut cells: Vec<(u32, f32)> = Vec::new();
-
-        if let Some(instant) = response.data().as_vector() {
-            for sample in instant {
-                if let Some(cell_str) = sample.metric().get("cell")
-                    && let Ok(cell_num) = cell_str.parse::<u32>()
-                {
-                    cells.push((cell_num, sample.sample().value() as f32));
-                }
-            }
-        }
-
-        cells.sort_by_key(|(n, _)| *n);
-        Ok(cells.into_iter().map(|(_, v)| v).collect())
+        }))
     }
 
     pub async fn query_range(
