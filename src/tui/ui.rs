@@ -716,7 +716,7 @@ fn draw_single_chart_with_zero_line(
             Dataset::default()
                 .marker(Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(Color::Rgb(15, 15, 15)))
+                .style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM))
                 .data(&zero_line_data),
         );
     }
