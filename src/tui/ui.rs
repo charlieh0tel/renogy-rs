@@ -98,15 +98,19 @@ fn draw_overview(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
-    let rollup = app.rollup();
+    let summary = app.summary();
 
-    let temp_str = match (rollup.min_temperature, rollup.max_temperature) {
-        (Some(min), Some(max)) => format!("{:.1}-{:.1}C", min, max),
-        _ => "N/A".to_string(),
+    let temp_str = match summary.average_temperature {
+        Some(temp) => format!("{:.1}C", temp),
+        None => "N/A".to_string(),
     };
 
-    let sign = if rollup.total_current >= 0.0 { "+" } else { "" };
-    let soc = rollup.average_soc;
+    let sign = if summary.total_current >= 0.0 {
+        "+"
+    } else {
+        ""
+    };
+    let soc = summary.average_soc;
     let bar = soc_bar(soc, 40);
 
     let alarm_count = app
@@ -117,12 +121,12 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
 
     let mut first_line = line![
         span!(LABEL; "Current: "),
-        span!(Style::default().fg(color_current(rollup.total_current)); format!("{sign}{:.1}A", rollup.total_current)),
+        span!(Style::default().fg(color_current(summary.total_current)); format!("{sign}{:.1}A", summary.total_current)),
         "    ",
         span!(LABEL; "Capacity: "),
         format!(
             "{:.0}/{:.0}Ah",
-            rollup.total_remaining_ah, rollup.total_capacity_ah
+            summary.total_remaining_ah, summary.total_capacity_ah
         ),
         "    ",
         span!(LABEL; "Temp: "),
@@ -147,12 +151,14 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
         ],
     ];
 
+    let title = if summary.battery_count == 1 {
+        " Summary (1 battery) ".to_string()
+    } else {
+        format!(" Summary ({} batteries) ", summary.battery_count)
+    };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(format!(
-            " Roll Up ({}/{}) ",
-            rollup.responding_count, rollup.battery_count
-        ))
+        .title(title)
         .title_style(BOLD);
 
     frame.render_widget(Paragraph::new(lines).block(block), area);

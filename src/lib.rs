@@ -8,8 +8,10 @@ pub mod pdu;
 pub mod query;
 pub mod registers;
 pub mod serial;
+pub mod system_summary;
 pub mod transport;
 pub mod tui;
+pub mod vm_client;
 
 pub use alarm::*;
 pub use any_transport::{AnyTransport, BT2_SCAN_RANGE, SERIAL_SCAN_RANGE};
@@ -20,4 +22,6 @@ pub use pdu::{FunctionCode, Pdu};
 pub use query::{BatteryInfo, query_battery};
 pub use registers::{Register, Value};
 pub use serial::SerialTransport;
+pub use system_summary::{SystemAlarms, SystemSummary};
 pub use transport::Transport;
+pub use vm_client::VmClient;

@@ -4,7 +4,9 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use renogy_rs::tui::{App, Event, EventHandler, Tab, VmClient, calculate_step_for_duration, draw};
+use renogy_rs::tui::{
+    App, Event, EventHandler, Tab, VmClient, calculate_step_for_duration, draw, query_range,
+};
 use std::io::stdout;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -216,7 +218,7 @@ async fn load_history(app: &mut App, client: &VmClient) {
     let start_secs = end_secs.saturating_sub(window_secs);
     let step_secs = calculate_step_for_duration(window_secs);
 
-    match client.query_range(start_secs, end_secs, step_secs).await {
+    match query_range(client, start_secs, end_secs, step_secs).await {
         Ok(points) => {
             app.history.replace(points);
         }

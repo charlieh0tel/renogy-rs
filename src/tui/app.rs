@@ -1,4 +1,5 @@
 use crate::query::BatteryInfo;
+use crate::system_summary::SystemSummary;
 use ratatui::widgets::ListState;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
@@ -118,8 +119,8 @@ impl App {
     }
 
     pub fn record_history(&mut self) {
-        let rollup = self.rollup();
-        self.history.push(&rollup);
+        let summary = self.summary();
+        self.history.push(&summary);
     }
 
     pub fn history_duration(&self) -> u64 {
@@ -168,60 +169,12 @@ impl App {
         self.last_update = Some(Instant::now());
     }
 
-    pub fn rollup(&self) -> RollUp {
-        RollUp::from_batteries(&self.batteries)
-    }
-}
-
-pub struct RollUp {
-    pub battery_count: usize,
-    pub responding_count: usize,
-    pub total_current: f32,
-    pub total_remaining_ah: f32,
-    pub total_capacity_ah: f32,
-    pub average_soc: f32,
-    pub min_temperature: Option<f32>,
-    pub max_temperature: Option<f32>,
-}
-
-impl RollUp {
-    pub fn from_batteries(batteries: &[(u8, Option<BatteryInfo>)]) -> Self {
-        let mut total_current = 0.0;
-        let mut total_remaining_ah = 0.0;
-        let mut total_capacity_ah = 0.0;
-        let mut min_temp: Option<f32> = None;
-        let mut max_temp: Option<f32> = None;
-        let mut responding_count = 0;
-
-        for (_, info) in batteries {
-            if let Some(info) = info {
-                responding_count += 1;
-                total_current += info.current;
-                total_remaining_ah += info.remaining_capacity;
-                total_capacity_ah += info.total_capacity;
-
-                for &temp in &info.cell_temperatures {
-                    min_temp = Some(min_temp.map_or(temp, |m| m.min(temp)));
-                    max_temp = Some(max_temp.map_or(temp, |m| m.max(temp)));
-                }
-            }
-        }
-
-        let average_soc = if total_capacity_ah > 0.0 {
-            (total_remaining_ah / total_capacity_ah) * 100.0
-        } else {
-            0.0
-        };
-
-        Self {
-            battery_count: batteries.len(),
-            responding_count,
-            total_current,
-            total_remaining_ah,
-            total_capacity_ah,
-            average_soc,
-            min_temperature: min_temp,
-            max_temperature: max_temp,
-        }
+    pub fn summary(&self) -> SystemSummary {
+        let infos: Vec<BatteryInfo> = self
+            .batteries
+            .iter()
+            .filter_map(|(_, info)| info.clone())
+            .collect();
+        SystemSummary::new(&infos)
     }
 }

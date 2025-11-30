@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::RollUp;
+use crate::system_summary::SystemSummary;
 
 const DEFAULT_MAX_POINTS: usize = 11_520; // 48 hours at 15s intervals
 
@@ -34,23 +34,17 @@ impl History {
         }
     }
 
-    pub fn push(&mut self, rollup: &RollUp) {
+    pub fn push(&mut self, summary: &SystemSummary) {
         let timestamp_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        let temp_avg = match (rollup.min_temperature, rollup.max_temperature) {
-            (Some(min), Some(max)) => Some((min + max) / 2.0),
-            (Some(t), None) | (None, Some(t)) => Some(t),
-            (None, None) => None,
-        };
-
         let point = DataPoint {
             timestamp_secs,
-            current: rollup.total_current,
-            soc: rollup.average_soc,
-            temp_avg,
+            current: summary.total_current,
+            soc: summary.average_soc,
+            temp_avg: summary.average_temperature,
         };
 
         if self.data.len() >= self.max_points {
