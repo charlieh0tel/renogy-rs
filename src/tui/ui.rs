@@ -161,7 +161,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_main_area(frame: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(32), Constraint::Min(40)])
+        .constraints([Constraint::Length(36), Constraint::Min(40)])
         .split(area);
 
     draw_battery_list(frame, app, chunks[0]);
@@ -236,8 +236,8 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
     let mut lines: Vec<Line> = vec![
         line![
             span!(BOLD; &battery.model),
-            "  ",
-            span!(LABEL; "SN:"),
+            if battery.model.is_empty() { "" } else { "  " },
+            span!(LABEL; "SN: "),
             Span::raw(&battery.serial),
             "  ",
             Span::raw(&battery.software_version),
