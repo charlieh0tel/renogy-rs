@@ -27,6 +27,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 influxdb-line-protocol = "2"
 prometheus-client = "0.23"
-prometheus-http-query = "0.8"
+prometheus-http-query = { version = "0.8", default-features = false, features = ["rustls-tls"] }
 thiserror = "2"
 
