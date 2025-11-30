@@ -236,7 +236,9 @@ async fn run_poller(
             }
         }
 
+        tracing::debug!("Polling {} batteries...", addresses.len());
         for &addr in addresses {
+            tracing::trace!("Querying 0x{:02X}...", addr);
             match transport.query_battery(addr).await {
                 Some(info) => {
                     tracing::debug!(
