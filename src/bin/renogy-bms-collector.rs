@@ -240,7 +240,8 @@ async fn run_poller(
 
         for &addr in addresses {
             match transport.query_battery(addr).await {
-                Some(info) => {
+                Some(mut info) => {
+                    info.serial = format!("{}_{:02X}", info.serial, addr);
                     tracing::debug!(
                         "Battery 0x{:02X}: {:.1}V {:.1}A {:.1}%",
                         addr,
