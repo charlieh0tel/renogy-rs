@@ -30,7 +30,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         VmClient::new(&args.vm_url).map_err(|e| format!("Failed to create VM client: {}", e))?;
 
     eprintln!("Discovering batteries...");
-    let batteries = client.discover_batteries().await?;
+    let batteries = match client.discover_batteries().await {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("Discovery error: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     if batteries.is_empty() {
         eprintln!("No batteries found in VictoriaMetrics!");

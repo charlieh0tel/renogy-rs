@@ -19,7 +19,7 @@ impl VmClient {
             .query("group by (battery) (renogy_soc_percent_value)")
             .get()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Query failed: {}", e))?;
 
         let mut batteries = Vec::new();
         if let Some(instant) = response.data().as_vector() {
@@ -28,6 +28,11 @@ impl VmClient {
                     batteries.push(battery.to_string());
                 }
             }
+        } else {
+            return Err(format!(
+                "Unexpected response type: {:?}",
+                response.data()
+            ));
         }
 
         Ok(batteries)
