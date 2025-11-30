@@ -1,3 +1,4 @@
+use crate::alarm::{Status1, Status2};
 use crate::tui::app::{App, Tab};
 use chrono::{DateTime, Local, TimeZone};
 use ratatui::{
@@ -295,7 +296,126 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
         ]);
     }
 
+    lines.push(line![]);
+
+    // Other temperatures (environment, heater)
+    let mut other_temps: Vec<String> = Vec::new();
+    for (i, &t) in battery.environment_temperatures.iter().enumerate() {
+        other_temps.push(format!("Env{}: {:.1}C", i + 1, t));
+    }
+    for (i, &t) in battery.heater_temperatures.iter().enumerate() {
+        other_temps.push(format!("Htr{}: {:.1}C", i + 1, t));
+    }
+    if !other_temps.is_empty() {
+        lines.push(line![span!(LABEL; "Other Temps: "), other_temps.join("  "),]);
+    }
+
+    // Limits
+    if let (Some(cv), Some(dv)) = (
+        battery.charge_voltage_limit,
+        battery.discharge_voltage_limit,
+    ) {
+        lines.push(line![
+            span!(LABEL; "Limits: "),
+            format!(
+                "V: {:.1}-{:.1}V  I: {:.1}/{:.1}A",
+                dv,
+                cv,
+                battery.charge_current_limit.unwrap_or(0.0),
+                battery.discharge_current_limit.unwrap_or(0.0)
+            ),
+        ]);
+    }
+
+    // MOSFET and status
+    if let Some(s1) = battery.status1 {
+        let charge_on = s1.contains(Status1::CHARGE_MOSFET);
+        let discharge_on = s1.contains(Status1::DISCHARGE_MOSFET);
+        lines.push(line![
+            span!(LABEL; "MOSFETs: "),
+            span!(if charge_on { Style::default().fg(Color::Green) } else { LABEL };
+                  format!("Chg:{}", if charge_on { "ON" } else { "off" })),
+            "  ",
+            span!(if discharge_on { Style::default().fg(Color::Green) } else { LABEL };
+                  format!("Dis:{}", if discharge_on { "ON" } else { "off" })),
+        ]);
+    }
+
+    // Status indicators
+    if let Some(s2) = battery.status2 {
+        let mut status_items = Vec::new();
+        if s2.contains(Status2::FULLY_CHARGED) {
+            status_items.push(("FULL", Color::Green));
+        }
+        if s2.contains(Status2::HEATER_ON) {
+            status_items.push(("HEATER", Color::Yellow));
+        }
+        if !status_items.is_empty() {
+            let mut spans: Vec<Span> = vec![span!(LABEL; "State: ")];
+            for (label, color) in status_items {
+                spans.push(span!(Style::default().fg(color); label));
+                spans.push(Span::raw(" "));
+            }
+            lines.push(Line::from(spans));
+        }
+    }
+
+    // Alarms
+    let alarms = collect_alarms(battery);
+    if !alarms.is_empty() {
+        lines.push(line![]);
+        lines.push(line![
+            span!(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD); "ALARMS:")
+        ]);
+        for alarm in alarms {
+            lines.push(line![
+                span!(Style::default().fg(Color::Red); format!("  {}", alarm)),
+            ]);
+        }
+    }
+
     frame.render_widget(Paragraph::new(lines).block(block), area);
+}
+
+fn collect_alarms(battery: &crate::query::BatteryInfo) -> Vec<&'static str> {
+    let mut alarms = Vec::new();
+
+    if let Some(s1) = battery.status1 {
+        let skip = Status1::CHARGE_MOSFET
+            | Status1::DISCHARGE_MOSFET
+            | Status1::USING_BATTERY_MODULE_POWER;
+        for (name, flag) in s1.iter_names() {
+            if !skip.contains(flag) {
+                alarms.push(name);
+            }
+        }
+    }
+
+    if let Some(s2) = battery.status2 {
+        let skip = Status2::EFFECTIVE_CHARGE_CURRENT
+            | Status2::EFFECTIVE_DISCHARGE_CURRENT
+            | Status2::HEATER_ON
+            | Status2::FULLY_CHARGED;
+        for (name, flag) in s2.iter_names() {
+            if !skip.contains(flag) {
+                alarms.push(name);
+            }
+        }
+    }
+
+    if let Some(s3) = battery.status3 {
+        for (name, _) in s3.iter_names() {
+            alarms.push(name);
+        }
+    }
+
+    if let Some(other) = battery.other_alarm_info {
+        for (name, _) in other.iter_names() {
+            alarms.push(name);
+        }
+    }
+
+    alarms
 }
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {
