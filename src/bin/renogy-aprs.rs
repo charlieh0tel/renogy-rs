@@ -98,7 +98,10 @@ async fn query_and_beacon(
     dst: &Call,
 ) -> Result<(), String> {
     debug!("Querying batteries from VictoriaMetrics");
-    let batteries = vm_client.query_all_batteries().await?;
+    let batteries = vm_client
+        .query_all_batteries()
+        .await
+        .map_err(|e| e.to_string())?;
     if batteries.is_empty() {
         return Err("No batteries found".to_string());
     }

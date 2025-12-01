@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub use crate::vm_client::VmClient;
+pub use crate::vm_client::{VmClient, VmError};
 
 use super::history::DataPoint;
 
@@ -9,7 +9,7 @@ pub async fn query_range(
     start_secs: u64,
     end_secs: u64,
     step_secs: u64,
-) -> Result<Vec<DataPoint>, String> {
+) -> Result<Vec<DataPoint>, VmError> {
     let start = start_secs as i64;
     let end = end_secs as i64;
     let step = step_secs as f64;

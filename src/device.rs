@@ -1,9 +1,6 @@
 use crate::error::Result;
 use crate::pdu::{FunctionCode, Pdu};
-
-const SHUTDOWN_REGISTER: u16 = 5222;
-const LOCK_CONTROL_REGISTER: u16 = 5224;
-const TEST_READY_REGISTER: u16 = 5225;
+use crate::registers::Register;
 
 const SHUTDOWN_VALUE: u16 = 1;
 const LOCK_VALUE: u16 = 0x5A5A;
@@ -45,25 +42,25 @@ impl DeviceCommand {
                 vec![0x00, 0x00, 0x00, 0x01], // Supplement data as per PDF
             ),
             DeviceCommand::Shutdown => {
-                Self::create_write_pdu(device_address, SHUTDOWN_REGISTER, SHUTDOWN_VALUE)
+                Self::create_write_pdu(device_address, Register::ShutdownCommand, SHUTDOWN_VALUE)
             }
             DeviceCommand::Lock => {
-                Self::create_write_pdu(device_address, LOCK_CONTROL_REGISTER, LOCK_VALUE)
+                Self::create_write_pdu(device_address, Register::LockControl, LOCK_VALUE)
             }
             DeviceCommand::Unlock => {
-                Self::create_write_pdu(device_address, LOCK_CONTROL_REGISTER, UNLOCK_VALUE)
+                Self::create_write_pdu(device_address, Register::LockControl, UNLOCK_VALUE)
             }
             DeviceCommand::TestBegin => {
-                Self::create_write_pdu(device_address, TEST_READY_REGISTER, TEST_BEGIN_VALUE)
+                Self::create_write_pdu(device_address, Register::TestReady, TEST_BEGIN_VALUE)
             }
             DeviceCommand::TestEnd => {
-                Self::create_write_pdu(device_address, TEST_READY_REGISTER, TEST_END_VALUE)
+                Self::create_write_pdu(device_address, Register::TestReady, TEST_END_VALUE)
             }
         }
     }
 
-    fn create_write_pdu(device_address: u8, register_address: u16, value: u16) -> Pdu {
-        let payload = [register_address.to_be_bytes(), value.to_be_bytes()].concat();
+    fn create_write_pdu(device_address: u8, register: Register, value: u16) -> Pdu {
+        let payload = [register.address().to_be_bytes(), value.to_be_bytes()].concat();
         Pdu::new(device_address, FunctionCode::WriteSingleRegister, payload)
     }
 

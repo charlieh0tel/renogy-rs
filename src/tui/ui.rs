@@ -116,7 +116,7 @@ fn draw_rollup(frame: &mut Frame, app: &App, area: Rect) {
     let alarm_count = app
         .batteries
         .iter()
-        .filter(|(_, info)| info.as_ref().is_some_and(has_alarms))
+        .filter(|(_, info)| info.as_ref().is_some_and(|b| b.has_alarms()))
         .count();
 
     let mut first_line = line![
@@ -183,7 +183,7 @@ fn draw_battery_list(frame: &mut Frame, app: &mut App, area: Rect) {
                 return ListItem::new(format!("0x{:02X} ---", addr)).style(LABEL);
             };
 
-            let has_alarm = has_alarms(b);
+            let has_alarm = b.has_alarms();
             let alarm_indicator = if has_alarm { "!" } else { " " };
 
             let content = Line::from(vec![
@@ -386,7 +386,7 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     // Alarms
-    let alarms = collect_alarms(battery);
+    let alarms = battery.active_alarms();
     if !alarms.is_empty() {
         lines.push(line![]);
         lines.push(line![
@@ -400,51 +400,6 @@ fn draw_battery_detail(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     frame.render_widget(Paragraph::new(lines).block(block), area);
-}
-
-fn collect_alarms(battery: &crate::query::BatteryInfo) -> Vec<&'static str> {
-    let mut alarms = Vec::new();
-
-    if let Some(s1) = battery.status1 {
-        let skip = Status1::CHARGE_MOSFET
-            | Status1::DISCHARGE_MOSFET
-            | Status1::USING_BATTERY_MODULE_POWER;
-        for (name, flag) in s1.iter_names() {
-            if !skip.contains(flag) {
-                alarms.push(name);
-            }
-        }
-    }
-
-    if let Some(s2) = battery.status2 {
-        let skip = Status2::EFFECTIVE_CHARGE_CURRENT
-            | Status2::EFFECTIVE_DISCHARGE_CURRENT
-            | Status2::HEATER_ON
-            | Status2::FULLY_CHARGED;
-        for (name, flag) in s2.iter_names() {
-            if !skip.contains(flag) {
-                alarms.push(name);
-            }
-        }
-    }
-
-    if let Some(s3) = battery.status3 {
-        for (name, _) in s3.iter_names() {
-            alarms.push(name);
-        }
-    }
-
-    if let Some(other) = battery.other_alarm_info {
-        for (name, _) in other.iter_names() {
-            alarms.push(name);
-        }
-    }
-
-    alarms
-}
-
-fn has_alarms(battery: &crate::query::BatteryInfo) -> bool {
-    !collect_alarms(battery).is_empty()
 }
 
 fn draw_status_bar(frame: &mut Frame, app: &App, area: Rect) {

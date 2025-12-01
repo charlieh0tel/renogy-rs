@@ -24,4 +24,4 @@ pub use registers::{Register, Value};
 pub use serial::SerialTransport;
 pub use system_summary::{SystemAlarms, SystemSummary};
 pub use transport::Transport;
-pub use vm_client::VmClient;
+pub use vm_client::{VmClient, VmError};

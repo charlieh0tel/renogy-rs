@@ -1,7 +1,18 @@
-use prometheus_http_query::{Client, Error as PromError};
+use prometheus_http_query::Client;
+use thiserror::Error;
 
 use crate::BatteryInfo;
 use crate::alarm::{Status1, Status2};
+
+#[derive(Debug, Error)]
+pub enum VmError {
+    #[error("prometheus query error: {0}")]
+    Query(#[from] prometheus_http_query::Error),
+    #[error("unexpected response type")]
+    UnexpectedResponse,
+    #[error("no batteries found")]
+    NoBatteries,
+}
 
 fn sort_and_extract(mut indexed: Vec<(u32, f32)>) -> Vec<f32> {
     indexed.sort_by_key(|(n, _)| *n);
@@ -13,18 +24,17 @@ pub struct VmClient {
 }
 
 impl VmClient {
-    pub fn new(base_url: &str) -> Result<Self, PromError> {
+    pub fn new(base_url: &str) -> Result<Self, VmError> {
         let client = Client::try_from(base_url)?;
         Ok(Self { client })
     }
 
-    pub async fn discover_batteries(&self) -> Result<Vec<String>, String> {
+    pub async fn discover_batteries(&self) -> Result<Vec<String>, VmError> {
         let response = self
             .client
             .query("group by (battery) (renogy_soc_percent_value)")
             .get()
-            .await
-            .map_err(|e| format!("Query failed: {}", e))?;
+            .await?;
 
         let mut batteries = Vec::new();
         if let Some(instant) = response.data().as_vector() {
@@ -34,20 +44,15 @@ impl VmClient {
                 }
             }
         } else {
-            return Err(format!("Unexpected response type: {:?}", response.data()));
+            return Err(VmError::UnexpectedResponse);
         }
 
         Ok(batteries)
     }
 
-    pub async fn query_latest(&self, battery: &str) -> Result<Option<BatteryInfo>, String> {
+    pub async fn query_latest(&self, battery: &str) -> Result<Option<BatteryInfo>, VmError> {
         let query = format!("{{battery=\"{}\",__name__=~\"renogy_.*_value\"}}", battery);
-        let response = self
-            .client
-            .query(query)
-            .get()
-            .await
-            .map_err(|e| e.to_string())?;
+        let response = self.client.query(query).get().await?;
 
         let Some(samples) = response.data().as_vector() else {
             return Ok(None);
@@ -162,7 +167,7 @@ impl VmClient {
         }))
     }
 
-    pub async fn query_all_batteries(&self) -> Result<Vec<BatteryInfo>, String> {
+    pub async fn query_all_batteries(&self) -> Result<Vec<BatteryInfo>, VmError> {
         let batteries = self.discover_batteries().await?;
         let mut results = Vec::new();
         for battery in batteries {
@@ -179,13 +184,12 @@ impl VmClient {
         start: i64,
         end: i64,
         step: f64,
-    ) -> Result<Vec<(u64, f32)>, String> {
+    ) -> Result<Vec<(u64, f32)>, VmError> {
         let response = self
             .client
             .query_range(query, start, end, step)
             .get()
-            .await
-            .map_err(|e| e.to_string())?;
+            .await?;
 
         let mut data = Vec::new();
         if let Some(matrix) = response.data().as_matrix()

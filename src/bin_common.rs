@@ -134,43 +134,7 @@ fn print_status(info: &BatteryInfo) {
 }
 
 fn print_alarms(info: &BatteryInfo) {
-    let mut alarms = Vec::new();
-
-    if let Some(s1) = info.status1 {
-        let skip = Status1::CHARGE_MOSFET
-            | Status1::DISCHARGE_MOSFET
-            | Status1::USING_BATTERY_MODULE_POWER;
-        for (name, flag) in s1.iter_names() {
-            if !skip.contains(flag) {
-                alarms.push(name);
-            }
-        }
-    }
-
-    if let Some(s2) = info.status2 {
-        let skip = Status2::EFFECTIVE_CHARGE_CURRENT
-            | Status2::EFFECTIVE_DISCHARGE_CURRENT
-            | Status2::HEATER_ON
-            | Status2::FULLY_CHARGED;
-        for (name, flag) in s2.iter_names() {
-            if !skip.contains(flag) {
-                alarms.push(name);
-            }
-        }
-    }
-
-    if let Some(s3) = info.status3 {
-        for (name, _) in s3.iter_names() {
-            alarms.push(name);
-        }
-    }
-
-    if let Some(other) = info.other_alarm_info {
-        for (name, _) in other.iter_names() {
-            alarms.push(name);
-        }
-    }
-
+    let alarms = info.active_alarms();
     if !alarms.is_empty() {
         println!();
         println!("  *** ALARMS ***");

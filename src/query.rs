@@ -9,6 +9,15 @@ use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
+const STATUS1_NON_ALARM_FLAGS: Status1 = Status1::CHARGE_MOSFET
+    .union(Status1::DISCHARGE_MOSFET)
+    .union(Status1::USING_BATTERY_MODULE_POWER);
+
+const STATUS2_NON_ALARM_FLAGS: Status2 = Status2::EFFECTIVE_CHARGE_CURRENT
+    .union(Status2::EFFECTIVE_DISCHARGE_CURRENT)
+    .union(Status2::HEATER_ON)
+    .union(Status2::FULLY_CHARGED);
+
 #[derive(Clone, Debug)]
 pub struct BatteryInfo {
     pub timestamp: DateTime<Utc>,
@@ -39,6 +48,52 @@ pub struct BatteryInfo {
     pub cell_voltage_alarms: Option<CellVoltageAlarms>,
     pub cell_temperature_alarms: Option<CellTemperatureAlarms>,
     pub charge_discharge_status: Option<ChargeDischargeStatus>,
+}
+
+impl BatteryInfo {
+    /// Returns a list of active alarm names from all status registers.
+    ///
+    /// Excludes non-alarm flags like MOSFET states, FULLY_CHARGED, HEATER_ON, etc.
+    #[must_use]
+    pub fn active_alarms(&self) -> Vec<&'static str> {
+        let mut alarms = Vec::new();
+
+        if let Some(s1) = self.status1 {
+            for (name, flag) in s1.iter_names() {
+                if !STATUS1_NON_ALARM_FLAGS.contains(flag) {
+                    alarms.push(name);
+                }
+            }
+        }
+
+        if let Some(s2) = self.status2 {
+            for (name, flag) in s2.iter_names() {
+                if !STATUS2_NON_ALARM_FLAGS.contains(flag) {
+                    alarms.push(name);
+                }
+            }
+        }
+
+        if let Some(s3) = self.status3 {
+            for (name, _) in s3.iter_names() {
+                alarms.push(name);
+            }
+        }
+
+        if let Some(other) = self.other_alarm_info {
+            for (name, _) in other.iter_names() {
+                alarms.push(name);
+            }
+        }
+
+        alarms
+    }
+
+    /// Returns true if any alarms are active.
+    #[must_use]
+    pub fn has_alarms(&self) -> bool {
+        !self.active_alarms().is_empty()
+    }
 }
 
 pub async fn query_battery<T: Transport>(transport: &mut T, addr: u8) -> Option<BatteryInfo> {

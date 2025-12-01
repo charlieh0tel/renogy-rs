@@ -196,7 +196,7 @@ async fn refresh_batteries(app: &mut App, client: &VmClient, batteries: &[String
                 }
             }
             Err(e) => {
-                app.error = Some(e);
+                app.error = Some(e.to_string());
             }
         }
     }
@@ -223,7 +223,7 @@ async fn load_history(app: &mut App, client: &VmClient) {
             app.history.replace(points);
         }
         Err(e) => {
-            app.error = Some(e);
+            app.error = Some(e.to_string());
         }
     }
 }
