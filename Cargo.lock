@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "agw"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af32623b77fb5ce78dc93dc9598e523c268b99fed8c52fa49cd127cf77ceaa34"
+dependencies = [
+ "anyhow",
+ "log",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -75,6 +85,12 @@ dependencies = [
  "once_cell_polyfill",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "anyhow"
+version = "1.0.100"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "async-broadcast"
@@ -1752,6 +1768,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 name = "renogy-rs"
 version = "0.1.0"
 dependencies = [
+ "agw",
  "axum",
  "bitflags 2.10.0",
  "bluebus",
