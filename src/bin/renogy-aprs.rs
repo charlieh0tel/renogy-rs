@@ -64,20 +64,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!(callsign = %args.callsign, interval = args.interval, "Configuration loaded");
 
     let mut last_definitions = Instant::now() - Duration::from_secs(DEFINITION_INTERVAL);
+    let mut agw: Option<AGW> = None;
 
     loop {
+        // Ensure we have an AGW connection
+        if agw.is_none() {
+            debug!(agw_addr = %agw_addr, "Connecting to AGW");
+            match AGW::new(&agw_addr) {
+                Ok(conn) => {
+                    info!("Connected to AGW");
+                    agw = Some(conn);
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to connect to AGW at {}", agw_addr);
+                    tokio::time::sleep(Duration::from_secs(args.interval)).await;
+                    continue;
+                }
+            }
+        }
+
+        let agw_conn = agw.as_mut().unwrap();
+
         // Send definitions on startup and every 30 minutes
         if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
-            match send_definitions(&agw_addr, &src, &dst, &args.callsign) {
+            match send_definitions(agw_conn, &src, &dst, &args.callsign) {
                 Ok(()) => info!("Telemetry definitions sent"),
-                Err(e) => error!(error = %e, "Failed to send definitions"),
+                Err(e) => {
+                    error!(error = %e, "Failed to send definitions");
+                    agw = None;
+                    continue;
+                }
             }
             last_definitions = Instant::now();
         }
 
-        match query_and_beacon(&vm_client, &agw_addr, &src, &dst).await {
+        match query_and_beacon(&vm_client, agw_conn, &src, &dst).await {
             Ok(()) => info!("Telemetry beacon sent"),
-            Err(e) => error!(error = %e, "Failed to send beacon"),
+            Err(e) => {
+                error!(error = %e, "Failed to send beacon");
+                agw = None;
+                continue;
+            }
         }
 
         if args.once {
@@ -93,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn query_and_beacon(
     vm_client: &VmClient,
-    agw_addr: &str,
+    agw: &mut AGW,
     src: &Call,
     dst: &Call,
 ) -> Result<(), String> {
@@ -119,7 +146,7 @@ async fn query_and_beacon(
     let packet = format_telemetry_packet(&summary);
     debug!(packet = %packet, "Formatted telemetry packet");
 
-    send_aprs_packet(agw_addr, src, dst, &packet)?;
+    send_aprs_packet(agw, src, dst, &packet)?;
 
     Ok(())
 }
@@ -150,11 +177,7 @@ fn format_telemetry_packet(summary: &SystemSummary) -> String {
     )
 }
 
-fn send_aprs_packet(agw_addr: &str, src: &Call, dst: &Call, data: &str) -> Result<(), String> {
-    debug!(agw_addr = %agw_addr, "Connecting to AGW");
-    let mut agw = AGW::new(agw_addr)
-        .map_err(|e| format!("Failed to connect to AGW at {}: {}", agw_addr, e))?;
-
+fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result<(), String> {
     debug!(src = %src, dst = %dst, len = data.len(), "Sending unproto frame");
     agw.unproto(0, 0xF0, src, dst, data.as_bytes())
         .map_err(|e| format!("Failed to send packet: {}", e))?;
@@ -163,7 +186,7 @@ fn send_aprs_packet(agw_addr: &str, src: &Call, dst: &Call, data: &str) -> Resul
     Ok(())
 }
 
-fn send_definitions(agw_addr: &str, src: &Call, dst: &Call, callsign: &str) -> Result<(), String> {
+fn send_definitions(agw: &mut AGW, src: &Call, dst: &Call, callsign: &str) -> Result<(), String> {
     info!("Sending telemetry definitions");
 
     // Pad callsign to 9 chars for message addressee
@@ -175,12 +198,12 @@ fn send_definitions(agw_addr: &str, src: &Call, dst: &Call, callsign: &str) -> R
         padded
     );
     debug!(packet = %parm, "PARM");
-    send_aprs_packet(agw_addr, src, dst, &parm)?;
+    send_aprs_packet(agw, src, dst, &parm)?;
 
     // UNIT - units for each parameter
     let unit = format!(":{}:UNIT.%,Ah,V,A,C", padded);
     debug!(packet = %unit, "UNIT");
-    send_aprs_packet(agw_addr, src, dst, &unit)?;
+    send_aprs_packet(agw, src, dst, &unit)?;
 
     // EQNS - coefficients: a*x^2 + b*x + c for each analog channel
     // A1: SOC (0-100, no transform) -> 0,1,0
@@ -190,12 +213,12 @@ fn send_definitions(agw_addr: &str, src: &Call, dst: &Call, callsign: &str) -> R
     // A5: Temp (offset by 40) -> 0,1,-40
     let eqns = format!(":{}:EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40", padded);
     debug!(packet = %eqns, "EQNS");
-    send_aprs_packet(agw_addr, src, dst, &eqns)?;
+    send_aprs_packet(agw, src, dst, &eqns)?;
 
     // BITS - bit sense (all active high) + project title
     let bits = format!(":{}:BITS.11111111,Renogy BMS", padded);
     debug!(packet = %bits, "BITS");
-    send_aprs_packet(agw_addr, src, dst, &bits)?;
+    send_aprs_packet(agw, src, dst, &bits)?;
 
     info!("All definitions sent");
     Ok(())
