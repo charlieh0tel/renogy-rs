@@ -26,102 +26,52 @@ pub enum Value {
     String(String),
 }
 
+macro_rules! impl_as_variant {
+    ($name:ident, $variant:ident, $ty:ty) => {
+        #[must_use]
+        pub fn $name(&self) -> Option<$ty> {
+            match self {
+                Value::$variant(v) => Some(*v),
+                _ => None,
+            }
+        }
+    };
+    ($name:ident, $variant:ident, ref $ty:ty) => {
+        #[must_use]
+        pub fn $name(&self) -> Option<&$ty> {
+            match self {
+                Value::$variant(v) => Some(v),
+                _ => None,
+            }
+        }
+    };
+}
+
 impl Value {
-    #[must_use]
-    pub fn as_string(&self) -> Option<&str> {
-        match self {
-            Value::String(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_integer(&self) -> Option<u32> {
-        match self {
-            Value::Integer(n) => Some(*n),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_voltage(&self) -> Option<ElectricPotential> {
-        match self {
-            Value::ElectricPotential(v) => Some(*v),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_current(&self) -> Option<ElectricCurrent> {
-        match self {
-            Value::ElectricCurrent(c) => Some(*c),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_temperature(&self) -> Option<ThermodynamicTemperature> {
-        match self {
-            Value::ThermodynamicTemperature(t) => Some(*t),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_status1(&self) -> Option<Status1> {
-        match self {
-            Value::Status1(s) => Some(*s),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_status2(&self) -> Option<Status2> {
-        match self {
-            Value::Status2(s) => Some(*s),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_status3(&self) -> Option<Status3> {
-        match self {
-            Value::Status3(s) => Some(*s),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_other_alarm_info(&self) -> Option<OtherAlarmInfo> {
-        match self {
-            Value::OtherAlarmInfo(o) => Some(*o),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_cell_voltage_alarms(&self) -> Option<CellVoltageAlarms> {
-        match self {
-            Value::CellVoltageAlarms(a) => Some(*a),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_cell_temperature_alarms(&self) -> Option<CellTemperatureAlarms> {
-        match self {
-            Value::CellTemperatureAlarms(a) => Some(*a),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_charge_discharge_status(&self) -> Option<ChargeDischargeStatus> {
-        match self {
-            Value::ChargeDischargeStatus(s) => Some(*s),
-            _ => None,
-        }
-    }
+    impl_as_variant!(as_string, String, ref str);
+    impl_as_variant!(as_integer, Integer, u32);
+    impl_as_variant!(as_voltage, ElectricPotential, ElectricPotential);
+    impl_as_variant!(as_current, ElectricCurrent, ElectricCurrent);
+    impl_as_variant!(
+        as_temperature,
+        ThermodynamicTemperature,
+        ThermodynamicTemperature
+    );
+    impl_as_variant!(as_status1, Status1, Status1);
+    impl_as_variant!(as_status2, Status2, Status2);
+    impl_as_variant!(as_status3, Status3, Status3);
+    impl_as_variant!(as_other_alarm_info, OtherAlarmInfo, OtherAlarmInfo);
+    impl_as_variant!(as_cell_voltage_alarms, CellVoltageAlarms, CellVoltageAlarms);
+    impl_as_variant!(
+        as_cell_temperature_alarms,
+        CellTemperatureAlarms,
+        CellTemperatureAlarms
+    );
+    impl_as_variant!(
+        as_charge_discharge_status,
+        ChargeDischargeStatus,
+        ChargeDischargeStatus
+    );
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -283,10 +233,8 @@ impl Register {
     /// Parse a value from register data (u16 slice from `Transport::read_holding_registers`).
     #[must_use]
     pub fn parse_registers(&self, registers: &[u16]) -> Value {
-        let mut data = Vec::with_capacity(registers.len() * 2);
-        for reg in registers {
-            data.extend_from_slice(&reg.to_be_bytes());
-        }
+        let mut data = vec![0u8; registers.len() * 2];
+        byteorder::BigEndian::write_u16_into(registers, &mut data);
         self.parse_value(&data)
     }
 

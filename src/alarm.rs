@@ -8,26 +8,6 @@ pub enum CellVoltageAlarm {
     UnderVoltage,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct CellVoltageAlarms {
-    pub alarms: [CellVoltageAlarm; 16],
-}
-
-impl CellVoltageAlarms {
-    #[must_use]
-    pub fn from_bits(value: u32) -> Self {
-        let mut alarms = [CellVoltageAlarm::default(); 16];
-        for (i, alarm) in alarms.iter_mut().enumerate() {
-            if (value >> (i + 16)) & 1 == 1 {
-                *alarm = CellVoltageAlarm::OverVoltage;
-            } else if (value >> i) & 1 == 1 {
-                *alarm = CellVoltageAlarm::UnderVoltage;
-            }
-        }
-        Self { alarms }
-    }
-}
-
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 pub enum CellTemperatureAlarm {
     #[default]
@@ -36,25 +16,43 @@ pub enum CellTemperatureAlarm {
     UnderTemperature,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct CellTemperatureAlarms {
-    pub alarms: [CellTemperatureAlarm; 16],
-}
+macro_rules! define_cell_alarms {
+    ($name:ident, $alarm_type:ty, $over:expr, $under:expr) => {
+        #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+        pub struct $name {
+            pub alarms: [$alarm_type; 16],
+        }
 
-impl CellTemperatureAlarms {
-    #[must_use]
-    pub fn from_bits(value: u32) -> Self {
-        let mut alarms = [CellTemperatureAlarm::default(); 16];
-        for (i, alarm) in alarms.iter_mut().enumerate() {
-            if (value >> (i + 16)) & 1 == 1 {
-                *alarm = CellTemperatureAlarm::OverTemperature;
-            } else if (value >> i) & 1 == 1 {
-                *alarm = CellTemperatureAlarm::UnderTemperature;
+        impl $name {
+            #[must_use]
+            pub fn from_bits(value: u32) -> Self {
+                let mut alarms = [<$alarm_type>::default(); 16];
+                for (i, alarm) in alarms.iter_mut().enumerate() {
+                    if (value >> (i + 16)) & 1 == 1 {
+                        *alarm = $over;
+                    } else if (value >> i) & 1 == 1 {
+                        *alarm = $under;
+                    }
+                }
+                Self { alarms }
             }
         }
-        Self { alarms }
-    }
+    };
 }
+
+define_cell_alarms!(
+    CellVoltageAlarms,
+    CellVoltageAlarm,
+    CellVoltageAlarm::OverVoltage,
+    CellVoltageAlarm::UnderVoltage
+);
+
+define_cell_alarms!(
+    CellTemperatureAlarms,
+    CellTemperatureAlarm,
+    CellTemperatureAlarm::OverTemperature,
+    CellTemperatureAlarm::UnderTemperature
+);
 
 bitflags! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -140,23 +138,29 @@ pub enum CellVoltageError {
     Error,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct CellVoltageErrors {
-    pub errors: [CellVoltageError; 16],
-}
+macro_rules! define_cell_errors {
+    ($name:ident, $error_type:ty, $error_variant:expr) => {
+        #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+        pub struct $name {
+            pub errors: [$error_type; 16],
+        }
 
-impl CellVoltageErrors {
-    #[must_use]
-    pub fn from_bits(value: u16) -> Self {
-        let mut errors = [CellVoltageError::default(); 16];
-        for (i, error) in errors.iter_mut().enumerate() {
-            if (value >> i) & 1 == 1 {
-                *error = CellVoltageError::Error;
+        impl $name {
+            #[must_use]
+            pub fn from_bits(value: u16) -> Self {
+                let mut errors = [<$error_type>::default(); 16];
+                for (i, error) in errors.iter_mut().enumerate() {
+                    if (value >> i) & 1 == 1 {
+                        *error = $error_variant;
+                    }
+                }
+                Self { errors }
             }
         }
-        Self { errors }
-    }
+    };
 }
+
+define_cell_errors!(CellVoltageErrors, CellVoltageError, CellVoltageError::Error);
 
 bitflags! {
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]

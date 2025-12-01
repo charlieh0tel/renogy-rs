@@ -10,11 +10,6 @@ pub enum FunctionCode {
     WriteMultipleRegisters = 0x10,
     RestoreFactoryDefault = 0x78,
     ClearHistory = 0x79,
-    ReadHoldingRegistersError = 0x83,
-    WriteSingleRegisterError = 0x86,
-    WriteMultipleRegistersError = 0x90,
-    RestoreFactoryDefaultError = 0xF8,
-    ClearHistoryError = 0xF9,
 }
 
 impl FunctionCode {
@@ -26,13 +21,19 @@ impl FunctionCode {
             0x10 => Some(FunctionCode::WriteMultipleRegisters),
             0x78 => Some(FunctionCode::RestoreFactoryDefault),
             0x79 => Some(FunctionCode::ClearHistory),
-            0x83 => Some(FunctionCode::ReadHoldingRegistersError),
-            0x86 => Some(FunctionCode::WriteSingleRegisterError),
-            0x90 => Some(FunctionCode::WriteMultipleRegistersError),
-            0xF8 => Some(FunctionCode::RestoreFactoryDefaultError),
-            0xF9 => Some(FunctionCode::ClearHistoryError),
             _ => None,
         }
+    }
+
+    #[must_use]
+    pub fn is_write_operation(self) -> bool {
+        matches!(
+            self,
+            FunctionCode::WriteSingleRegister
+                | FunctionCode::WriteMultipleRegisters
+                | FunctionCode::RestoreFactoryDefault
+                | FunctionCode::ClearHistory
+        )
     }
 }
 
@@ -65,26 +66,8 @@ impl Pdu {
     }
 
     #[must_use]
-    pub fn is_error_response(&self) -> bool {
-        matches!(
-            self.function_code,
-            FunctionCode::ReadHoldingRegistersError
-                | FunctionCode::WriteSingleRegisterError
-                | FunctionCode::WriteMultipleRegistersError
-                | FunctionCode::RestoreFactoryDefaultError
-                | FunctionCode::ClearHistoryError
-        )
-    }
-
-    #[must_use]
     pub fn is_write_operation(&self) -> bool {
-        matches!(
-            self.function_code,
-            FunctionCode::WriteSingleRegister
-                | FunctionCode::WriteMultipleRegisters
-                | FunctionCode::RestoreFactoryDefault
-                | FunctionCode::ClearHistory
-        )
+        self.function_code.is_write_operation()
     }
 
     pub fn deserialize(frame: &[u8]) -> Result<Self> {
@@ -102,10 +85,7 @@ impl Pdu {
 
         let address = data[0];
         let function_code_byte = data[1];
-        let function_code =
-            FunctionCode::from_u8(function_code_byte).ok_or(RenogyError::InvalidData)?;
 
-        // Check if this is an error response (high bit set)
         if function_code_byte & 0x80 != 0 {
             if data.len() >= 3 {
                 let exception_code = data[2];
@@ -115,6 +95,9 @@ impl Pdu {
             }
             return Err(RenogyError::InvalidData);
         }
+
+        let function_code =
+            FunctionCode::from_u8(function_code_byte).ok_or(RenogyError::InvalidData)?;
 
         let payload = data[2..].to_vec();
 
