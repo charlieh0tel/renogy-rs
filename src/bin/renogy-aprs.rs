@@ -185,7 +185,7 @@ fn send_definitions(agw_addr: &str, src: &Call, dst: &Call, callsign: &str) -> R
     // A3: Voltage (0-255V, no transform) -> 0,1,0
     // A4: Current (offset by 128) -> 0,1,-128
     // A5: Temp (offset by 40) -> 0,1,-40
-    let eqns = format!(":{}:EQNS.0,1,0,0,1,0,0,1,-128,0,1,-40", padded);
+    let eqns = format!(":{}:EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40", padded);
     debug!(packet = %eqns, "EQNS");
     send_aprs_packet(agw_addr, src, dst, &eqns)?;
 
