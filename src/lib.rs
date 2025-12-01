@@ -23,5 +23,5 @@ pub use query::{BatteryInfo, query_battery};
 pub use registers::{Register, Value};
 pub use serial::SerialTransport;
 pub use system_summary::{SystemAlarms, SystemSummary};
-pub use transport::Transport;
+pub use transport::{Transport, TransportType};
 pub use vm_client::{VmClient, VmError};

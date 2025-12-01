@@ -1,10 +1,17 @@
 use crate::error::Result;
-use std::future::Future;
+use async_trait::async_trait;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransportType {
+    Bt2,
+    Serial,
+}
 
 /// Transport trait for Modbus communication over any physical layer.
 ///
 /// Implementations handle the physical layer details (serial, BLE, TCP, etc.)
 /// while providing a consistent high-level Modbus API.
+#[async_trait]
 pub trait Transport {
     /// Read holding registers from a device.
     ///
@@ -15,12 +22,12 @@ pub trait Transport {
     ///
     /// # Returns
     /// Vector of register values (u16)
-    fn read_holding_registers(
+    async fn read_holding_registers(
         &mut self,
         slave: u8,
         addr: u16,
         quantity: u16,
-    ) -> impl Future<Output = Result<Vec<u16>>> + Send;
+    ) -> Result<Vec<u16>>;
 
     /// Write a single register to a device.
     ///
@@ -28,12 +35,7 @@ pub trait Transport {
     /// * `slave` - Modbus slave address
     /// * `addr` - Register address
     /// * `value` - Value to write
-    fn write_single_register(
-        &mut self,
-        slave: u8,
-        addr: u16,
-        value: u16,
-    ) -> impl Future<Output = Result<()>> + Send;
+    async fn write_single_register(&mut self, slave: u8, addr: u16, value: u16) -> Result<()>;
 
     /// Write multiple registers to a device.
     ///
@@ -41,12 +43,12 @@ pub trait Transport {
     /// * `slave` - Modbus slave address
     /// * `addr` - Starting register address
     /// * `values` - Values to write
-    fn write_multiple_registers(
+    async fn write_multiple_registers(
         &mut self,
         slave: u8,
         addr: u16,
         values: &[u16],
-    ) -> impl Future<Output = Result<()>> + Send;
+    ) -> Result<()>;
 
     /// Send a custom function code request.
     ///
@@ -60,10 +62,8 @@ pub trait Transport {
     ///
     /// # Returns
     /// Response data (without address, function code, or CRC)
-    fn send_custom(
-        &mut self,
-        slave: u8,
-        function_code: u8,
-        data: &[u8],
-    ) -> impl Future<Output = Result<Vec<u8>>> + Send;
+    async fn send_custom(&mut self, slave: u8, function_code: u8, data: &[u8]) -> Result<Vec<u8>>;
+
+    /// Get the type of the transport
+    fn transport_type(&self) -> TransportType;
 }

@@ -1769,6 +1769,7 @@ name = "renogy-rs"
 version = "0.1.0"
 dependencies = [
  "agw",
+ "async-trait",
  "axum",
  "bitflags 2.10.0",
  "bluebus",

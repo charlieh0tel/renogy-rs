@@ -1,6 +1,7 @@
 use crate::error::{RenogyError, Result};
 use crate::pdu::{FunctionCode, Pdu};
-use crate::transport::Transport;
+use crate::transport::{Transport, TransportType};
+use async_trait::async_trait;
 use bluebus::{DeviceProxy, GattCharacteristic1Proxy, ObjectManagerProxy};
 use futures::StreamExt;
 use std::sync::Arc;
@@ -189,6 +190,7 @@ impl Bt2Transport {
     }
 }
 
+#[async_trait]
 impl Transport for Bt2Transport {
     async fn read_holding_registers(
         &mut self,
@@ -253,6 +255,10 @@ impl Transport for Bt2Transport {
             .send_pdu(&Pdu::new(slave, fc, data.to_vec()))
             .await?
             .payload)
+    }
+
+    fn transport_type(&self) -> TransportType {
+        TransportType::Bt2
     }
 }
 

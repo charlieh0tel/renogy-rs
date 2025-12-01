@@ -4,7 +4,8 @@
 //! using `tokio-modbus` for the underlying Modbus RTU communication.
 
 use crate::error::{RenogyError, Result};
-use crate::transport::Transport;
+use crate::transport::{Transport, TransportType};
+use async_trait::async_trait;
 use std::io::{Error as IoError, ErrorKind};
 use tokio_modbus::client::{Client, Context, Reader, Writer};
 use tokio_modbus::slave::{Slave, SlaveContext};
@@ -81,6 +82,7 @@ impl SerialTransport {
     }
 }
 
+#[async_trait]
 impl Transport for SerialTransport {
     async fn read_holding_registers(
         &mut self,
@@ -127,6 +129,10 @@ impl Transport for SerialTransport {
             tokio_modbus::prelude::Response::Custom(_fc, response_data) => Ok(response_data),
             _ => Err(RenogyError::InvalidData),
         }
+    }
+
+    fn transport_type(&self) -> TransportType {
+        TransportType::Serial
     }
 }
 
