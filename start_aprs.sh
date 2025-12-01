@@ -3,6 +3,8 @@
 set -o errexit
 set -o nounset
 
+CALLSIGN="AI6KG-12"
+
 . "${HOME}/.cargo/env"
 
 HERE="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -14,4 +16,4 @@ cargo build --quiet --bin renogy-aprs && \
   -e /tmp/renogy-aprs.stderr \
   -o /tmp/renogy-aprs.stdout \
   -p /tmp/renogy-aprs.pid \
-  $(pwd)/target/debug/renogy-aprs
+  $(pwd)/target/debug/renogy-aprs --callsign "${CALLSIGN}"
