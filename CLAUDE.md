@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. **Commit Messages**: Do not add Gemini attribution or co-authorship to commit messages. Keep commit messages clean and professional.
 6. **Code Consistency**: Be consistent with existing code patterns, naming conventions, and architectural decisions in the codebase.
 7. **Git Add**: Never use `git add -A`. Always add files explicitly by name and only those files that you edited.
+8. **File Reading**: Always read files completely before making changes. Use chunking (offset/limit parameters) for large files if necessary, but ensure the entire file is read.
 
 ## Rust Configuration
 

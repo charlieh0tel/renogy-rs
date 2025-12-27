@@ -2,7 +2,7 @@ use crate::error::{RenogyError, Result};
 use crate::pdu::{FunctionCode, Pdu};
 use crate::transport::{Transport, TransportType};
 use async_trait::async_trait;
-use bluebus::{DeviceProxy, GattCharacteristic1Proxy, ObjectManagerProxy};
+use bluebus::{AdapterProxy, DeviceProxy, GattCharacteristic1Proxy, ObjectManagerProxy};
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -262,7 +262,29 @@ impl Transport for Bt2Transport {
     }
 }
 
+const DEFAULT_SCAN_DURATION: Duration = Duration::from_secs(5);
+
 pub async fn discover_bt2_devices() -> Result<Vec<bluebus::DeviceInfo>> {
+    discover_bt2_devices_with_options("hci0", DEFAULT_SCAN_DURATION).await
+}
+
+pub async fn discover_bt2_devices_with_options(
+    adapter: &str,
+    scan_duration: Duration,
+) -> Result<Vec<bluebus::DeviceInfo>> {
+    let connection = bluebus::get_system_connection().await?;
+
+    let adapter_path = format!("/org/bluez/{adapter}");
+    let adapter_proxy = AdapterProxy::builder(&connection)
+        .path(adapter_path.as_str())?
+        .build()
+        .await?;
+
+    if adapter_proxy.start_discovery().await.is_ok() {
+        tokio::time::sleep(scan_duration).await;
+        adapter_proxy.stop_discovery().await.ok();
+    }
+
     Ok(bluebus::list_devices()
         .await
         .into_iter()
