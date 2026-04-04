@@ -1,6 +1,6 @@
 [package]
 name = "renogy-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Christopher Hoover <ch@murgatroid.com>"]
 license = "MIT"
@@ -51,8 +51,8 @@ assets = [
     ["target/release/renogy-bms-collector", "usr/bin/", "755"],
     ["target/release/renogy-aprs", "usr/bin/", "755"],
     ["target/release/renogy-tui", "usr/bin/", "755"],
-    ["systemd/renogy-bms-collector.service", "usr/lib/systemd/user/", "644"],
-    ["systemd/renogy-aprs.service", "usr/lib/systemd/user/", "644"],
+    ["systemd/renogy-bms-collector.service", "usr/lib/systemd/system/", "644"],
+    ["systemd/renogy-aprs.service", "usr/lib/systemd/system/", "644"],
     ["README.md", "usr/share/doc/renogy-rs/", "644"],
 ]
 

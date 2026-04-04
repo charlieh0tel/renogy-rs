@@ -10,6 +10,8 @@ Restart=on-failure
 RestartSec=10
 Environment=RUST_LOG=info
 Environment=COLLECTOR_ARGS=bt2
+DynamicUser=yes
+SupplementaryGroups=bluetooth
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target

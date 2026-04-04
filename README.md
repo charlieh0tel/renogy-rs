@@ -28,9 +28,9 @@ Requires Rust 1.89+ (see `rust-toolchain.toml`).
 cargo install --path .
 ```
 
-## Systemd User Services
+## Systemd Services
 
-The repo includes systemd unit files for running `renogy-bms-collector` and `renogy-aprs` as user services. When installed from a .deb, the service files are placed in `/usr/lib/systemd/user/`.
+The repo includes systemd unit files for running `renogy-bms-collector` and `renogy-aprs` as system services. When installed from a .deb, the service files are placed in `/usr/lib/systemd/system/`.
 
 ### Configuration
 
@@ -49,19 +49,19 @@ EOF
 ### Enabling the Services
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now renogy-bms-collector
-systemctl --user enable --now renogy-aprs
+sudo systemctl daemon-reload
+sudo systemctl enable --now renogy-bms-collector
+sudo systemctl enable --now renogy-aprs
 ```
 
 ### Managing the Services
 
 ```bash
-systemctl --user status renogy-aprs
-systemctl --user status renogy-bms-collector
+systemctl status renogy-aprs
+systemctl status renogy-bms-collector
 
-journalctl --user -u renogy-aprs -f
-journalctl --user -u renogy-bms-collector -f
+journalctl -u renogy-aprs -f
+journalctl -u renogy-bms-collector -f
 ```
 
 ## License
