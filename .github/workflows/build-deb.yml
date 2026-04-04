@@ -13,3 +13,4 @@ jobs:
     with:
       build-deps: "libdbus-1-dev"
       build-deps-arm64: "libdbus-1-dev:arm64"
+    secrets: inherit
