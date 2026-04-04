@@ -15,7 +15,7 @@ Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial, with AP
 Requires Rust 1.89+ (see `rust-toolchain.toml`).
 
 ```bash
-cargo build --release
+cargo install --path .
 ```
 
 ## Systemd User Services
@@ -35,8 +35,8 @@ echo 'CALLSIGN=AI6KG-12' > ~/.config/renogy/env
 
 ```bash
 mkdir -p ~/.config/systemd/user
-ln -s ~/src/renogy-rs/renogy-aprs.service ~/.config/systemd/user/
-ln -s ~/src/renogy-rs/renogy-bms-collector.service ~/.config/systemd/user/
+ln -s systemd/renogy-aprs.service ~/.config/systemd/user/
+ln -s systemd/renogy-bms-collector.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now renogy-bms-collector
 systemctl --user enable --now renogy-aprs
@@ -54,7 +54,7 @@ journalctl --user -u renogy-aprs -f
 journalctl --user -u renogy-bms-collector -f
 
 # Restart after rebuilding
-cargo build --release
+cargo install --path .
 systemctl --user restart renogy-aprs renogy-bms-collector
 ```
 
