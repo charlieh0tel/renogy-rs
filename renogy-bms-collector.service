@@ -1,0 +1,13 @@
+[Unit]
+Description=Renogy BMS Collector
+After=bluetooth.target
+
+[Service]
+Type=simple
+ExecStart=%h/src/renogy-rs/target/release/renogy-bms-collector bt2
+Restart=on-failure
+RestartSec=10
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

@@ -46,6 +46,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
+    if args.callsign.starts_with("N0CALL") {
+        return Err(
+            "callsign is N0CALL; set a real callsign via --callsign or CALLSIGN env var".into(),
+        );
+    }
+
     info!(vm_url = %args.vm_url, agw = %format!("{}:{}", args.agw_host, args.agw_port), "Starting APRS beacon");
 
     let vm_client =

@@ -1,0 +1,16 @@
+[Unit]
+Description=Renogy APRS Reporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-%h/.config/renogy/env
+ExecStart=%h/src/renogy-rs/target/release/renogy-aprs --callsign ${CALLSIGN}
+Restart=on-failure
+RestartSec=10
+Environment=RUST_LOG=info
+Environment=CALLSIGN=N0CALL
+
+[Install]
+WantedBy=default.target
