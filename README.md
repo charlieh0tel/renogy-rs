@@ -28,7 +28,7 @@ The repo includes systemd unit files for running `renogy-bms-collector` and `ren
 
 ```bash
 mkdir -p ~/.config/renogy
-echo 'CALLSIGN=AI6KG-12' > ~/.config/renogy/env
+echo 'CALLSIGN=Y0URS-12' > ~/.config/renogy/env
 ```
 
 ### Installing the Services
