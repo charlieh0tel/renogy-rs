@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-EnvironmentFile=-%h/.config/renogy/env
-ExecStart=%h/.cargo/bin/renogy-aprs --callsign ${CALLSIGN}
+EnvironmentFile=-/etc/default/renogy-rs
+ExecStart=/usr/bin/renogy-aprs --callsign ${CALLSIGN}
 Restart=on-failure
 RestartSec=10
 Environment=RUST_LOG=info
