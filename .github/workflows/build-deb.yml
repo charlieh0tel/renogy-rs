@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build-deb:
     uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
