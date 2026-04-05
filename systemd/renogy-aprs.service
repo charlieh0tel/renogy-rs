@@ -11,7 +11,13 @@ Restart=on-failure
 RestartSec=10
 Environment=RUST_LOG=info
 Environment=SSID=N0CALL-1
-DynamicUser=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
