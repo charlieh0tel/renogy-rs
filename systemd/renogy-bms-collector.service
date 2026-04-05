@@ -12,6 +12,12 @@ StartLimitBurst=5
 StartLimitIntervalSec=300
 Environment=RUST_LOG=info
 Environment=COLLECTOR_ARGS=bt2
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
