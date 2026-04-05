@@ -1,0 +1,8 @@
+# Configuration for renogy-rs services
+
+# APRS station ID, e.g. Y0URS-12 (required, will refuse to start with N0CALL)
+#CALLSIGN=Y0URS-12
+
+# Arguments for renogy-bms-collector (default: bt2)
+# Examples: "bt2 --adapter hci1", "serial --port /dev/ttyUSB0"
+#COLLECTOR_ARGS=bt2

@@ -54,5 +54,7 @@ assets = [
     ["systemd/renogy-bms-collector.service", "usr/lib/systemd/system/", "644"],
     ["systemd/renogy-aprs.service", "usr/lib/systemd/system/", "644"],
     ["README.md", "usr/share/doc/renogy-rs/", "644"],
+    ["etc/default/renogy-rs", "etc/default/", "644"],
 ]
+conf-files = ["/etc/default/renogy-rs"]
 

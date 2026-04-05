@@ -34,16 +34,13 @@ The repo includes systemd unit files for running `renogy-bms-collector` and `ren
 
 ### Configuration
 
-Create `/etc/default/renogy-rs` to configure the services:
+Edit `/etc/default/renogy-rs` to configure the services (installed by the .deb):
 
 ```bash
-sudo tee /etc/default/renogy-rs << 'EOF'
-CALLSIGN=Y0URS-12
-COLLECTOR_ARGS=bt2
-EOF
+sudo editor /etc/default/renogy-rs
 ```
 
-- **CALLSIGN** -- Required for `renogy-aprs`. Defaults to `N0CALL`, which the program will reject at startup.
+- **CALLSIGN** -- APRS station ID (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogy-aprs` will reject at startup.
 - **COLLECTOR_ARGS** -- Arguments for `renogy-bms-collector`. Defaults to `bt2`. Examples: `bt2 --adapter hci1`, `serial --port /dev/ttyUSB0`.
 
 ### Enabling the Services
