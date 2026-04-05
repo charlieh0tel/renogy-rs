@@ -40,7 +40,7 @@ Edit `/etc/default/renogy-rs` to configure the services (installed by the .deb):
 sudo editor /etc/default/renogy-rs
 ```
 
-- **CALLSIGN** -- APRS station ID (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogy-aprs` will reject at startup.
+- **SSID** -- APRS SSID, i.e. callsign-N (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogy-aprs` will reject at startup.
 - **COLLECTOR_ARGS** -- Arguments for `renogy-bms-collector`. Defaults to `bt2`. Examples: `bt2 --adapter hci1`, `serial --port /dev/ttyUSB0`.
 
 ### Enabling the Services

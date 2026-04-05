@@ -1,16 +1,16 @@
 [Unit]
 Description=Renogy APRS Reporter
-After=network-online.target
-Wants=network-online.target
+After=network-online.target direwolf.service
+Wants=network-online.target direwolf.service
 
 [Service]
 Type=simple
 EnvironmentFile=-/etc/default/renogy-rs
-ExecStart=/usr/bin/renogy-aprs --callsign ${CALLSIGN}
+ExecStart=/usr/bin/renogy-aprs --ssid ${SSID}
 Restart=on-failure
 RestartSec=10
 Environment=RUST_LOG=info
-Environment=CALLSIGN=N0CALL
+Environment=SSID=N0CALL-1
 DynamicUser=yes
 
 [Install]

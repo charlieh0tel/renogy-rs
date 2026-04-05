@@ -11,9 +11,9 @@ const DEFINITION_INTERVAL: u64 = 1800; // 30 minutes
 #[command(name = "renogy-aprs")]
 #[command(about = "APRS telemetry beacon for Renogy BMS via Direwolf AGW interface")]
 struct Args {
-    /// APRS callsign with SSID (e.g., N0CALL-13)
+    /// APRS SSID, i.e. callsign-N (e.g., W1AW-12)
     #[arg(long)]
-    callsign: String,
+    ssid: String,
 
     /// VictoriaMetrics URL
     #[arg(long, default_value = "http://localhost:8428")]
@@ -46,10 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    if args.callsign.starts_with("N0CALL") {
-        return Err(
-            "callsign is N0CALL; set a real callsign via --callsign or CALLSIGN env var".into(),
-        );
+    if args.ssid.starts_with("N0CALL") {
+        return Err("SSID starts with N0CALL; set a real SSID via --ssid or SSID env var".into());
     }
 
     info!(vm_url = %args.vm_url, agw = %format!("{}:{}", args.agw_host, args.agw_port), "Starting APRS beacon");
@@ -58,16 +56,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         VmClient::new(&args.vm_url).map_err(|e| format!("Failed to create VM client: {}", e))?;
 
     let src: Call = args
-        .callsign
+        .ssid
         .parse()
-        .map_err(|e| format!("Invalid callsign: {}", e))?;
+        .map_err(|e| format!("Invalid station ID: {}", e))?;
     let dst: Call = args
         .tocall
         .parse()
         .map_err(|e| format!("Invalid tocall: {}", e))?;
     let agw_addr = format!("{}:{}", args.agw_host, args.agw_port);
 
-    info!(callsign = %args.callsign, interval = args.interval, "Configuration loaded");
+    info!(ssid = %args.ssid, interval = args.interval, "Configuration loaded");
 
     let mut last_definitions = Instant::now() - Duration::from_secs(DEFINITION_INTERVAL);
     let mut agw: Option<AGW> = None;
@@ -93,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Send definitions on startup and every 30 minutes
         if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
-            match send_definitions(agw_conn, &src, &dst, &args.callsign) {
+            match send_definitions(agw_conn, &src, &dst, &args.ssid) {
                 Ok(()) => info!("Telemetry definitions sent"),
                 Err(e) => {
                     error!(error = %e, "Failed to send definitions");
