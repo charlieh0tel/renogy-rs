@@ -7,16 +7,11 @@ Type=simple
 EnvironmentFile=-/etc/default/renogy-rs
 ExecStart=/usr/bin/renogy-bms-collector ${COLLECTOR_ARGS}
 Restart=on-failure
-RestartSec=10
+RestartSec=30
+StartLimitBurst=5
+StartLimitIntervalSec=300
 Environment=RUST_LOG=info
 Environment=COLLECTOR_ARGS=bt2
-ProtectSystem=strict
-ProtectHome=yes
-NoNewPrivileges=yes
-PrivateTmp=yes
-ProtectKernelTunables=yes
-ProtectControlGroups=yes
-RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
