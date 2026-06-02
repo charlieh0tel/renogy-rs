@@ -8,6 +8,10 @@ description = "Rust tools for monitoring Renogy BMS batteries via Bluetooth and 
 homepage = "https://github.com/charlieh0tel/renogy-rs"
 repository = "https://github.com/charlieh0tel/renogy-rs"
 
+[workspace]
+members = ["puller"]
+resolver = "2"
+
 [dependencies]
 futures = "0.3"
 crc = "3.3.0"
