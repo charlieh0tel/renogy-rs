@@ -1,5 +1,6 @@
 pub mod alarm;
 pub mod any_transport;
+pub mod archiver;
 pub mod bt2;
 pub mod collector;
 pub mod device;
