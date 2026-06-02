@@ -4,6 +4,9 @@ After=bluetooth.target
 
 [Service]
 Type=simple
+User=renogy-collector
+Group=renogy-collector
+SupplementaryGroups=dialout
 EnvironmentFile=-/etc/default/renogy-rs
 ExecStart=/usr/bin/renogy-bms-collector ${COLLECTOR_ARGS}
 Restart=on-failure
