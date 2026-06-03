@@ -212,68 +212,33 @@ serde_json = "1"
 
 Note: pin `arrow` and `parquet` to the same major version.
 
-## Cargo.toml Binary Entry (Pi side)
-
-No `[[bin]]` entry is needed. This project auto-discovers binaries from `src/bin/`
-and uses hyphenated names (e.g. `renogy-bms-collector.rs`). Add the binary as:
-
-```
-src/bin/renogy-archiver.rs
-```
-
 ## Workspace & Packaging
 
-The repo becomes a two-crate Cargo workspace so the puller is also Rust and also
-builds via `cargo-deb` — no `dpkg-deb`/`fpm`, no second repo:
+`renogy-rs` is a Cargo workspace: the root is the shared **library** (plus dev
+query/example bins, not packaged), and each shipped tool is its own member crate
+producing its own `.deb` via `cargo-deb`. No `dpkg-deb`/`fpm`, no second repo.
 
 ```
-renogy-rs/                       # repo root = existing renogy-rs crate
-  Cargo.toml                     # [package] renogy-rs  +  [workspace] members = ["puller"]
-  src/bin/renogy-archiver.rs     # Pi-side export binary (in the root crate)
-  puller/
-    Cargo.toml                   # [package] renogy-archiver-puller + its [package.metadata.deb]
-    src/main.rs                  # archive-host pull binary
-    systemd/  default/  sysusers/  tmpfiles/
+renogy-rs/                  # root = library crate (renogy_rs)
+  src/                      # lib + dev bins (bt2-query, serial-query, example)
+  collector/                # renogy-bms-collector + renogy-tui   -> deb renogy-collector
+  aprs/                     # renogy-aprs                          -> deb renogy-aprs
+  archiver/                 # renogy-archiver (self-contained)     -> deb renogy-archiver
+  puller/                   # renogy-archiver-puller               -> deb renogy-archiver-puller
 ```
 
-Two artifacts, both from `cargo-deb`, built by CI for their respective arches:
+- `collector`/`aprs` depend on the `renogy-rs` lib (path); `archiver`/`puller` are
+  self-contained (the archiver pulls `arrow`/`parquet` out of the lib entirely).
+- Each member ships its own systemd unit(s), `sysusers.d` user, and (collector/aprs)
+  `/etc/default/<pkg>` conf-file. Units are plain assets, **not** auto-enabled —
+  enable with `systemctl enable --now` after configuring.
+- `archiver` depends on `rsync` (the Pi serves the rrsync pull) and recommends
+  `openssh-server`.
+- Collector BT-2 access relies on modern BlueZ's default D-Bus policy — no BlueZ
+  dependency (see "Non-root Posture").
 
-```sh
-cargo deb                              # renogy-rs           -> arm64 (Pi)
-cargo deb -p renogy-archiver-puller    # renogy-archiver-puller -> x86_64 (archive host)
-```
-
-CI already builds both arm64 and x86_64, so the per-arch split is a non-issue.
-
-## package.metadata.deb Additions
-
-The Pi serves the pull, so it needs `rsync` (rrsync drives the remote `rsync --server`
-here) — a hard dependency `$auto` can't detect. `openssh-server` is already present
-(you reach the Pi over SSH), so it's a `recommends`, not a hard `depends`:
-
-```toml
-depends = "$auto, rsync"
-recommends = "openssh-server"
-```
-
-Add to `assets`. The new export units are plain assets and **not** auto-enabled —
-matching the existing collector/aprs convention — so the export timer is disabled
-until you `systemctl enable --now` it. A single `sysusers.d` file provisions all
-three service users (see "Non-root Posture"), and the BlueZ D-Bus policy lets the
-collector reach BT-2 unprivileged:
-```toml
-["target/release/renogy-archiver", "usr/bin/", "755"],
-["systemd/renogy-archiver-export.timer", "usr/lib/systemd/system/", "644"],
-["systemd/renogy-archiver-export.service", "usr/lib/systemd/system/", "644"],
-["systemd/renogy-rs.sysusers", "usr/lib/sysusers.d/renogy-rs.conf", "644"],
-["dbus/renogy-bms-collector.conf", "etc/dbus-1/system.d/renogy-bms-collector.conf", "644"],
-```
-
-The existing `renogy-bms-collector.service` and `renogy-aprs.service` assets stay,
-but their unit *contents* gain `User=`/`Group=`/`SupplementaryGroups=` (these are
-edits to files already shipped, not new assets). The service users are provisioned
-from the shipped `sysusers.d` file by systemd's dpkg trigger on install (a `postinst`
-running `systemd-sysusers` is a safe fallback on older systemd).
+CI builds each with `cargo deb -p <package> --target <arch>` for both amd64 and arm64,
+disambiguating artifacts via the `artifact-suffix` input.
 
 ## Systemd Units
 

@@ -2,8 +2,11 @@ use std::path::PathBuf;
 
 use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
-use renogy_rs::archiver::{self, ExportConfig};
 use tracing_subscriber::EnvFilter;
+
+mod archiver;
+
+use archiver::ExportConfig;
 
 #[derive(Parser)]
 #[command(name = "renogy-archiver")]

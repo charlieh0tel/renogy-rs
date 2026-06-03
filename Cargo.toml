@@ -9,9 +9,11 @@ homepage = "https://github.com/charlieh0tel/renogy-rs"
 repository = "https://github.com/charlieh0tel/renogy-rs"
 
 [workspace]
-members = ["puller"]
+members = ["collector", "aprs", "archiver", "puller"]
 resolver = "2"
 
+# renogy-rs is the shared library crate (plus dev query/example bins). The shipped
+# tools live in the member crates, each producing its own .deb.
 [dependencies]
 futures = "0.3"
 crc = "3.3.0"
@@ -28,8 +30,7 @@ ratatui = "0.29"
 ratatui-macros = "0.6"
 crossterm = "0.28"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = "0.4"
 axum = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tokio-util = "0.7"
@@ -39,34 +40,5 @@ influxdb-line-protocol = "2"
 prometheus-client = "0.23"
 prometheus-http-query = { version = "0.8", default-features = false, features = ["rustls-tls"] }
 thiserror = "2"
-agw = "0.1.9"
 async-trait = "0.1.81"
-arrow = { version = "58", default-features = false }
-parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
-
-[package.metadata.deb]
-maintainer = "Christopher Hoover <ch@murgatroid.com>"
-copyright = "2024-2026, Christopher Hoover"
-license-file = ["LICENSE", "4"]
-extended-description = """\
-Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial, \
-with APRS telemetry reporting and a terminal UI."""
-section = "hamradio"
-priority = "optional"
-depends = "$auto, rsync"
-recommends = "openssh-server"
-assets = [
-    ["target/release/renogy-bms-collector", "usr/bin/", "755"],
-    ["target/release/renogy-aprs", "usr/bin/", "755"],
-    ["target/release/renogy-tui", "usr/bin/", "755"],
-    ["target/release/renogy-archiver", "usr/bin/", "755"],
-    ["systemd/renogy-bms-collector.service", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-aprs.service", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-archiver-export.service", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-archiver-export.timer", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-rs.sysusers", "usr/lib/sysusers.d/renogy-rs.conf", "644"],
-    ["README.md", "usr/share/doc/renogy-rs/", "644"],
-    ["etc/default/renogy-rs", "etc/default/", "644"],
-]
-conf-files = ["/etc/default/renogy-rs"]
 

@@ -1,3 +1,0 @@
-u renogy-archiver  - "Renogy archiver"      /var/lib/renogy-archiver -
-u renogy-collector - "Renogy BMS collector" -                       -
-u renogy-aprs      - "Renogy APRS reporter"  -                       -

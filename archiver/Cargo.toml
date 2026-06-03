@@ -1,0 +1,38 @@
+[package]
+name = "renogy-archiver"
+version = "0.1.0"
+edition = "2024"
+authors = ["Christopher Hoover <ch@murgatroid.com>"]
+license = "MIT"
+description = "Export Renogy BMS metrics from VictoriaMetrics to Parquet"
+homepage = "https://github.com/charlieh0tel/renogy-rs"
+repository = "https://github.com/charlieh0tel/renogy-rs"
+
+[dependencies]
+arrow = { version = "58", default-features = false }
+parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4.5.53", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+
+[package.metadata.deb]
+name = "renogy-archiver"
+maintainer = "Christopher Hoover <ch@murgatroid.com>"
+copyright = "2024-2026, Christopher Hoover"
+section = "hamradio"
+priority = "optional"
+depends = "$auto, rsync"
+recommends = "openssh-server"
+extended-description = "Exports Renogy BMS history from VictoriaMetrics to daily Parquet files for an archive host to pull."
+assets = [
+    ["target/release/renogy-archiver", "usr/bin/", "755"],
+    ["systemd/renogy-archiver-export.service", "usr/lib/systemd/system/", "644"],
+    ["systemd/renogy-archiver-export.timer", "usr/lib/systemd/system/", "644"],
+    ["sysusers/renogy-archiver.conf", "usr/lib/sysusers.d/renogy-archiver.conf", "644"],
+]

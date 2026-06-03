@@ -2202,6 +2202,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "renogy-aprs"
+version = "0.2.3"
+dependencies = [
+ "agw",
+ "clap",
+ "renogy-rs",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "renogy-archiver"
+version = "0.1.0"
+dependencies = [
+ "arrow",
+ "chrono",
+ "clap",
+ "parquet",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "renogy-archiver-puller"
 version = "0.1.0"
 dependencies = [
@@ -2213,11 +2242,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "renogy-collector"
+version = "0.2.3"
+dependencies = [
+ "clap",
+ "crossterm",
+ "prometheus-client",
+ "ratatui",
+ "renogy-rs",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "renogy-rs"
 version = "0.2.3"
 dependencies = [
- "agw",
- "arrow",
  "async-trait",
  "axum",
  "bitflags 2.11.0",
@@ -2229,14 +2271,12 @@ dependencies = [
  "crossterm",
  "futures",
  "influxdb-line-protocol",
- "parquet",
  "prometheus-client",
  "prometheus-http-query",
  "ratatui",
  "ratatui-macros",
  "reqwest",
  "serde",
- "serde_json",
  "thiserror",
  "tokio",
  "tokio-modbus",

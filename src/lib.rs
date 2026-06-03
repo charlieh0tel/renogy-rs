@@ -1,6 +1,5 @@
 pub mod alarm;
 pub mod any_transport;
-pub mod archiver;
 pub mod bt2;
 pub mod collector;
 pub mod device;
@@ -12,6 +11,7 @@ pub mod serial;
 pub mod system_summary;
 pub mod transport;
 pub mod tui;
+pub mod util;
 pub mod vm_client;
 
 pub use alarm::*;

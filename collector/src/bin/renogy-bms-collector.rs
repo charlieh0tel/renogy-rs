@@ -1,9 +1,6 @@
-#[path = "../bin_common.rs"]
-mod common;
-
 use clap::{Parser, Subcommand};
-use common::parse_address;
 use prometheus_client::registry::Registry;
+use renogy_rs::util::parse_address;
 use renogy_rs::{
     AnyTransport, BT2_SCAN_RANGE, Bt2Transport, SERIAL_SCAN_RANGE, SerialTransport,
     collector::{MetricsServer, PrometheusMetrics, SampleBuffer, VmWriter},

@@ -1,8 +1,6 @@
-#[path = "../bin_common.rs"]
-mod common;
-
 use clap::Parser;
-use common::{parse_address, print_battery_info};
+use renogy_rs::util::parse_address;
+use renogy_rs::util::print_battery_info;
 use renogy_rs::{Bt2Transport, discover_bt2_devices, query_battery};
 
 #[derive(Parser)]
