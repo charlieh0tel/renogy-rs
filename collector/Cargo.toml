@@ -9,7 +9,7 @@ homepage = "https://github.com/charlieh0tel/renogy-rs"
 repository = "https://github.com/charlieh0tel/renogy-rs"
 
 [dependencies]
-renogy-rs = { path = ".." }
+renogy-rs = { version = "0.2.3", path = ".." }
 clap = { version = "4.5.53", features = ["derive"] }
 prometheus-client = "0.23"
 tokio = { version = "1", features = ["full"] }

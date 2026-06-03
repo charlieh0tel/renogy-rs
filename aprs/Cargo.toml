@@ -9,7 +9,7 @@ homepage = "https://github.com/charlieh0tel/renogy-rs"
 repository = "https://github.com/charlieh0tel/renogy-rs"
 
 [dependencies]
-renogy-rs = { path = ".." }
+renogy-rs = { version = "0.2.3", path = ".." }
 agw = "0.1.9"
 clap = { version = "4.5.53", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
