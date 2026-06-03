@@ -1,7 +1,9 @@
 use bitflags::bitflags;
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
+use chrono::Utc;
 
-use crate::alarm::{Status1, Status2};
+use crate::alarm::Status1;
+use crate::alarm::Status2;
 use crate::query::BatteryInfo;
 
 #[derive(Debug, Clone)]

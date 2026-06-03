@@ -1,9 +1,13 @@
-use agw::{AGW, Call};
+use agw::AGW;
+use agw::Call;
 use clap::Parser;
 use renogy_rs::system_summary::SystemSummary;
 use renogy_rs::vm_client::VmClient;
-use std::time::{Duration, Instant};
-use tracing::{debug, error, info};
+use std::time::Duration;
+use std::time::Instant;
+use tracing::debug;
+use tracing::error;
+use tracing::info;
 
 const DEFAULT_BEACON_INTERVAL: u64 = 600; // 10 minutes
 const DEFINITION_INTERVAL: u64 = 1800; // 30 minutes

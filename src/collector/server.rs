@@ -1,4 +1,7 @@
-use axum::{Router, http::header, response::IntoResponse, routing::get};
+use axum::Router;
+use axum::http::header;
+use axum::response::IntoResponse;
+use axum::routing::get;
 use prometheus_client::encoding::text::encode;
 use prometheus_client::registry::Registry;
 use std::net::SocketAddr;

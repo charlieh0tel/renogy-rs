@@ -2,8 +2,14 @@ use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
 
-use arrow::array::{ArrayRef, Float64Array, StringArray, TimestampMillisecondArray};
-use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
+use arrow::array::ArrayRef;
+use arrow::array::Float64Array;
+use arrow::array::StringArray;
+use arrow::array::TimestampMillisecondArray;
+use arrow::datatypes::DataType;
+use arrow::datatypes::Field;
+use arrow::datatypes::Schema;
+use arrow::datatypes::TimeUnit;
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::Compression;

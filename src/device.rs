@@ -1,5 +1,6 @@
 use crate::error::Result;
-use crate::pdu::{FunctionCode, Pdu};
+use crate::pdu::FunctionCode;
+use crate::pdu::Pdu;
 use crate::registers::Register;
 
 const SHUTDOWN_VALUE: u16 = 1;

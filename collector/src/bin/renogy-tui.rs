@@ -1,14 +1,24 @@
 use clap::Parser;
-use crossterm::{
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
-use ratatui::{Terminal, backend::CrosstermBackend};
-use renogy_rs::tui::{
-    App, Event, EventHandler, Tab, VmClient, calculate_step_for_duration, draw, query_range,
-};
+use crossterm::execute;
+use crossterm::terminal::EnterAlternateScreen;
+use crossterm::terminal::LeaveAlternateScreen;
+use crossterm::terminal::disable_raw_mode;
+use crossterm::terminal::enable_raw_mode;
+use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
+use renogy_rs::tui::App;
+use renogy_rs::tui::Event;
+use renogy_rs::tui::EventHandler;
+use renogy_rs::tui::Tab;
+use renogy_rs::tui::VmClient;
+use renogy_rs::tui::calculate_step_for_duration;
+use renogy_rs::tui::draw;
+use renogy_rs::tui::query_range;
 use std::io::stdout;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use std::time::Instant;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(15);
 const TICK_RATE: Duration = Duration::from_millis(250);

@@ -1,8 +1,14 @@
-use crate::error::{RenogyError, Result};
-use crate::pdu::{FunctionCode, Pdu};
-use crate::transport::{Transport, TransportType};
+use crate::error::RenogyError;
+use crate::error::Result;
+use crate::pdu::FunctionCode;
+use crate::pdu::Pdu;
+use crate::transport::Transport;
+use crate::transport::TransportType;
 use async_trait::async_trait;
-use bluebus::{AdapterProxy, DeviceProxy, GattCharacteristic1Proxy, ObjectManagerProxy};
+use bluebus::AdapterProxy;
+use bluebus::DeviceProxy;
+use bluebus::GattCharacteristic1Proxy;
+use bluebus::ObjectManagerProxy;
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;

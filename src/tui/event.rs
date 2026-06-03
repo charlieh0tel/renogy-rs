@@ -1,4 +1,8 @@
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event;
+use crossterm::event::Event as CrosstermEvent;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyModifiers;
 use std::time::Duration;
 use tokio::sync::mpsc;
 

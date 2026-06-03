@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 use crate::archiver::ArchiverError;
 

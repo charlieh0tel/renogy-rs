@@ -1,10 +1,17 @@
-use renogy_rs::alarm::{CellVoltageAlarm, CellVoltageAlarms, Status1};
-use renogy_rs::device::{DeviceCommand, PowerSettings};
-use renogy_rs::pdu::{FunctionCode, Pdu};
-use renogy_rs::registers::{Register, Value};
+use renogy_rs::alarm::CellVoltageAlarm;
+use renogy_rs::alarm::CellVoltageAlarms;
+use renogy_rs::alarm::Status1;
+use renogy_rs::device::DeviceCommand;
+use renogy_rs::device::PowerSettings;
+use renogy_rs::pdu::FunctionCode;
+use renogy_rs::pdu::Pdu;
+use renogy_rs::registers::Register;
+use renogy_rs::registers::Value;
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
-use uom::si::f32::{ElectricCurrent, ElectricPotential, ThermodynamicTemperature};
+use uom::si::f32::ElectricCurrent;
+use uom::si::f32::ElectricPotential;
+use uom::si::f32::ThermodynamicTemperature;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 fn main() {

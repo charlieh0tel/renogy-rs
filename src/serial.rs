@@ -3,12 +3,19 @@
 //! This module provides a serial transport that implements the `Transport` trait,
 //! using `tokio-modbus` for the underlying Modbus RTU communication.
 
-use crate::error::{RenogyError, Result};
-use crate::transport::{Transport, TransportType};
+use crate::error::RenogyError;
+use crate::error::Result;
+use crate::transport::Transport;
+use crate::transport::TransportType;
 use async_trait::async_trait;
-use std::io::{Error as IoError, ErrorKind};
-use tokio_modbus::client::{Client, Context, Reader, Writer};
-use tokio_modbus::slave::{Slave, SlaveContext};
+use std::io::Error as IoError;
+use std::io::ErrorKind;
+use tokio_modbus::client::Client;
+use tokio_modbus::client::Context;
+use tokio_modbus::client::Reader;
+use tokio_modbus::client::Writer;
+use tokio_modbus::slave::Slave;
+use tokio_modbus::slave::SlaveContext;
 use tokio_serial::SerialPortBuilderExt;
 
 /// Default baud rate for Renogy BMS communication
@@ -21,7 +28,9 @@ pub const DEFAULT_BAUD_RATE: u32 = 9600;
 /// # Example
 ///
 /// ```ignore
-/// use renogy_rs::{SerialTransport, Transport, Register};
+/// use renogy_rs::registers::Register;
+/// use renogy_rs::serial::SerialTransport;
+/// use renogy_rs::transport::Transport;
 ///
 /// let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01).await?;
 ///

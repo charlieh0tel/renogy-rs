@@ -1,7 +1,8 @@
 use crate::query::BatteryInfo;
 use crate::system_summary::SystemSummary;
 use ratatui::widgets::ListState;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use std::time::Instant;
 
 use super::history::History;

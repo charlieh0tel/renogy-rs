@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use clap::Subcommand;
 use prometheus_client::registry::Registry;
 use renogy_rs::any_transport::AnyTransport;
 use renogy_rs::any_transport::BT2_SCAN_RANGE;

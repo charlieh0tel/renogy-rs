@@ -1,12 +1,20 @@
-use crate::alarm::{
-    CellTemperatureAlarms, CellVoltageAlarms, CellVoltageErrors, ChargeDischargeStatus,
-    OtherAlarmInfo, Status1, Status2, Status3,
-};
-use crate::error::{RenogyError, Result};
-use byteorder::{BigEndian, ByteOrder};
+use crate::alarm::CellTemperatureAlarms;
+use crate::alarm::CellVoltageAlarms;
+use crate::alarm::CellVoltageErrors;
+use crate::alarm::ChargeDischargeStatus;
+use crate::alarm::OtherAlarmInfo;
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::alarm::Status3;
+use crate::error::RenogyError;
+use crate::error::Result;
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
-use uom::si::f32::{ElectricCurrent, ElectricPotential, ThermodynamicTemperature};
+use uom::si::f32::ElectricCurrent;
+use uom::si::f32::ElectricPotential;
+use uom::si::f32::ThermodynamicTemperature;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 #[derive(Debug, PartialEq)]

@@ -1,16 +1,35 @@
-use crate::alarm::{Status1, Status2};
-use crate::tui::app::{App, Tab};
-use chrono::{DateTime, Local, TimeZone};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols::Marker,
-    text::{Line, Span},
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph, Tabs},
-};
-use ratatui_macros::{line, span};
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::tui::app::App;
+use crate::tui::app::Tab;
+use chrono::DateTime;
+use chrono::Local;
+use chrono::TimeZone;
+use ratatui::Frame;
+use ratatui::layout::Constraint;
+use ratatui::layout::Direction;
+use ratatui::layout::Layout;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::symbols::Marker;
+use ratatui::text::Line;
+use ratatui::text::Span;
+use ratatui::widgets::Axis;
+use ratatui::widgets::Block;
+use ratatui::widgets::Borders;
+use ratatui::widgets::Chart;
+use ratatui::widgets::Dataset;
+use ratatui::widgets::GraphType;
+use ratatui::widgets::List;
+use ratatui::widgets::ListItem;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Tabs;
+use ratatui_macros::line;
+use ratatui_macros::span;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 type ChartDataPoints = Vec<(f64, f64)>;
 
