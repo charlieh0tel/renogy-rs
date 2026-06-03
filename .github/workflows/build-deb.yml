@@ -17,3 +17,10 @@ jobs:
     with:
       build-deps: "libdbus-1-dev"
     secrets: inherit
+
+  build-deb-puller:
+    uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
+    with:
+      package: renogy-archiver-puller
+      artifact-suffix: puller
+    secrets: inherit
