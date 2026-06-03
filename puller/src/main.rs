@@ -147,7 +147,7 @@ fn status(dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("files: {}", days.len());
     println!("range: {first} .. {last}");
     if missing.is_empty() {
-        println!("gaps:  none — contiguous");
+        println!("gaps:  none - contiguous");
     } else {
         println!("gaps:  {} missing day(s):", missing.len());
         for m in &missing {

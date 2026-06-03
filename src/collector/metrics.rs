@@ -1,4 +1,4 @@
-use crate::BatteryInfo;
+use crate::query::BatteryInfo;
 use influxdb_line_protocol::LineProtocolBuilder;
 use prometheus_client::encoding::EncodeLabelSet;
 use prometheus_client::metrics::family::Family;
@@ -186,7 +186,9 @@ impl PrometheusMetrics {
     }
 
     pub fn update(&self, info: &BatteryInfo) {
-        use crate::{ChargeDischargeStatus, Status1, Status2};
+        use crate::alarm::ChargeDischargeStatus;
+        use crate::alarm::Status1;
+        use crate::alarm::Status2;
 
         let serial = &info.serial;
         let battery_labels = BatteryLabels {
@@ -329,7 +331,9 @@ impl PrometheusMetrics {
 }
 
 pub fn batch_to_influx(samples: &[BatteryInfo]) -> String {
-    use crate::{ChargeDischargeStatus, Status1, Status2};
+    use crate::alarm::ChargeDischargeStatus;
+    use crate::alarm::Status1;
+    use crate::alarm::Status2;
 
     macro_rules! measurement {
         ($b:expr, $name:expr, $serial:expr, $value:expr, $ts:expr) => {

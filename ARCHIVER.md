@@ -32,19 +32,19 @@ not wired into Grafana.
 ```
 RPi4
   VictoriaMetrics (localhost:8428, ~180d retention)
-      │  HTTP /api/v1/export
-      ▼
+      |  HTTP /api/v1/export
+      v
   renogy-archiver export            (systemd timer, daily)
-      │
-      ▼
+      |
+      v
   /var/lib/renogy-archiver/staging/renogy_YYYY-MM-DD.parquet   (one file per day)
-      ▲
-      │  rsync --remove-source-files over SSH, INITIATED BY the archive host
-      │  (Tailscale). On success the source files are deleted from the RPi4.
+      ^
+      |  rsync --remove-source-files over SSH, INITIATED BY the archive host
+      |  (Tailscale). On success the source files are deleted from the RPi4.
 Archive host  (always-on, on Tailscale; holds the SSH private key)
   rsync pull            (cron/systemd timer)
-      │
-      ▼
+      |
+      v
   ~/renogy-archive/renogy_YYYY-MM-DD.parquet
 ```
 

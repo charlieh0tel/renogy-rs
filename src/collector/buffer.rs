@@ -1,4 +1,4 @@
-use crate::BatteryInfo;
+use crate::query::BatteryInfo;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};

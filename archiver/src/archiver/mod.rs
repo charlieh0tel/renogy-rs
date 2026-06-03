@@ -118,7 +118,7 @@ pub fn run_status(staging_dir: &Path, state_file: &Path) -> Result<(), ArchiverE
     let state = state::State::load(state_file)?;
     match state.last_exported_day {
         Some(d) => println!("last_exported_day: {d}"),
-        None => println!("last_exported_day: (none — nothing exported yet)"),
+        None => println!("last_exported_day: (none - nothing exported yet)"),
     }
 
     let mut staged: Vec<NaiveDate> = Vec::new();

@@ -1,4 +1,6 @@
-use crate::{BatteryInfo, Status1, Status2};
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::query::BatteryInfo;
 
 /// Parse a BMS address given as decimal or `0x`-prefixed hex.
 pub fn parse_address(s: &str) -> Result<u8, String> {
@@ -13,9 +15,9 @@ pub fn parse_address(s: &str) -> Result<u8, String> {
 
 /// Pretty-print a full battery snapshot to stdout (used by the query/example bins).
 pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
-    println!("═══════════════════════════════════════════════════════════");
+    println!("===========================================================");
     println!("Battery 0x{:02X}", addr);
-    println!("═══════════════════════════════════════════════════════════");
+    println!("===========================================================");
     println!("  Model: {}  Serial: {}", info.model, info.serial);
     println!(
         "  Manufacturer: {}  Version: {}",
@@ -34,7 +36,7 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
         info.cell_temperatures.iter().copied().reduce(f32::max),
     ) {
         println!(
-            "  Cycles: {}    Temp: {:.1}-{:.1} °C ({} sensors)",
+            "  Cycles: {}    Temp: {:.1}-{:.1} C ({} sensors)",
             info.cycle_count,
             min_temp,
             max_temp,
@@ -54,13 +56,13 @@ pub fn print_battery_info(addr: u8, info: &BatteryInfo) {
 fn print_temperatures(info: &BatteryInfo) {
     let mut temps = Vec::new();
     if let Some(t) = info.bms_temperature {
-        temps.push(format!("BMS: {:.1}°C", t));
+        temps.push(format!("BMS: {:.1}C", t));
     }
     for (i, t) in info.environment_temperatures.iter().enumerate() {
-        temps.push(format!("Env{}: {:.1}°C", i + 1, t));
+        temps.push(format!("Env{}: {:.1}C", i + 1, t));
     }
     for (i, t) in info.heater_temperatures.iter().enumerate() {
-        temps.push(format!("Heater{}: {:.1}°C", i + 1, t));
+        temps.push(format!("Heater{}: {:.1}C", i + 1, t));
     }
     if !temps.is_empty() {
         println!("  Other Temps: {}", temps.join("  "));

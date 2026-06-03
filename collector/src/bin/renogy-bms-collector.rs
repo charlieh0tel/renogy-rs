@@ -1,11 +1,16 @@
 use clap::{Parser, Subcommand};
 use prometheus_client::registry::Registry;
+use renogy_rs::any_transport::AnyTransport;
+use renogy_rs::any_transport::BT2_SCAN_RANGE;
+use renogy_rs::any_transport::SERIAL_SCAN_RANGE;
+use renogy_rs::bt2::Bt2Transport;
+use renogy_rs::bt2::discover_bt2_devices;
+use renogy_rs::collector::MetricsServer;
+use renogy_rs::collector::PrometheusMetrics;
+use renogy_rs::collector::SampleBuffer;
+use renogy_rs::collector::VmWriter;
+use renogy_rs::serial::SerialTransport;
 use renogy_rs::util::parse_address;
-use renogy_rs::{
-    AnyTransport, BT2_SCAN_RANGE, Bt2Transport, SERIAL_SCAN_RANGE, SerialTransport,
-    collector::{MetricsServer, PrometheusMetrics, SampleBuffer, VmWriter},
-    discover_bt2_devices,
-};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;

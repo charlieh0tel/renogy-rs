@@ -1,7 +1,8 @@
 use clap::Parser;
+use renogy_rs::query::query_battery;
+use renogy_rs::serial::SerialTransport;
 use renogy_rs::util::parse_address;
 use renogy_rs::util::print_battery_info;
-use renogy_rs::{SerialTransport, query_battery};
 
 #[derive(Parser)]
 #[command(name = "serial-query")]

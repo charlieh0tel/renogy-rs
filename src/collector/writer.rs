@@ -1,5 +1,6 @@
-use crate::BatteryInfo;
-use crate::collector::{SampleBuffer, metrics::batch_to_influx};
+use crate::collector::SampleBuffer;
+use crate::collector::metrics::batch_to_influx;
+use crate::query::BatteryInfo;
 use reqwest::Client;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;

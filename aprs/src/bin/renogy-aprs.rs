@@ -1,6 +1,7 @@
 use agw::{AGW, Call};
 use clap::Parser;
-use renogy_rs::{SystemSummary, VmClient};
+use renogy_rs::system_summary::SystemSummary;
+use renogy_rs::vm_client::VmClient;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info};
 

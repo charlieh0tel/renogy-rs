@@ -80,7 +80,7 @@ pub async fn export_day(
         let labels = labels_json(&parsed.metric);
         for (ts, val) in parsed.timestamps.iter().zip(parsed.values.iter()) {
             // Clip to [start, end) so a sample exactly at the next midnight belongs to
-            // the following day only — no overlap between daily files.
+            // the following day only -- no overlap between daily files.
             if *ts >= start_ms && *ts < end_ms {
                 rows.push(Row {
                     ts_ms: *ts,

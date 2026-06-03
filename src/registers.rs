@@ -274,7 +274,7 @@ impl Register {
                 ElectricPotential::new::<volt>(BigEndian::read_u16(data) as f32 * 0.1),
             ),
 
-            // Temperature (0.1°C resolution, unsigned)
+            // Temperature (0.1 C resolution, unsigned)
             Register::CellTemperature(_)
             | Register::BmsTemperature
             | Register::EnvironmentTemperature(_)
@@ -284,7 +284,7 @@ impl Register {
                 ))
             }
 
-            // Temperature limits (0.1°C resolution, signed)
+            // Temperature limits (0.1 C resolution, signed)
             Register::ChargeOverTemperatureLimit
             | Register::ChargeHighTemperatureLimit
             | Register::ChargeLowTemperatureLimit

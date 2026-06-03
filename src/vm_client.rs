@@ -1,8 +1,9 @@
 use prometheus_http_query::Client;
 use thiserror::Error;
 
-use crate::BatteryInfo;
-use crate::alarm::{Status1, Status2};
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::query::BatteryInfo;
 
 #[derive(Debug, Error)]
 pub enum VmError {

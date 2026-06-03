@@ -220,15 +220,15 @@ fn main() {
     }
 
     println!("\n--- Complete BMS System Example ---");
-    println!("✅ Enhanced Renogy BMS Library Features:");
-    println!("   • 49 total registers (16 monitoring + 33 configuration)");
-    println!("   • Full read/write operation support");
-    println!("   • Complete Modbus exception handling");
-    println!("   • Device control commands (lock, unlock, test, reset)");
-    println!("   • Multi-sensor support (environment, heater)");
-    println!("   • ACP protocol support");
-    println!("   • Type-safe unit conversions");
-    println!("   • Configuration limits for voltage, current, temperature");
-    println!("   • Power management settings");
-    println!("   • Production-ready BMS control system");
+    println!("Enhanced Renogy BMS Library Features:");
+    println!("   - 49 total registers (16 monitoring + 33 configuration)");
+    println!("   - Full read/write operation support");
+    println!("   - Complete Modbus exception handling");
+    println!("   - Device control commands (lock, unlock, test, reset)");
+    println!("   - Multi-sensor support (environment, heater)");
+    println!("   - ACP protocol support");
+    println!("   - Type-safe unit conversions");
+    println!("   - Configuration limits for voltage, current, temperature");
+    println!("   - Power management settings");
+    println!("   - Production-ready BMS control system");
 }
