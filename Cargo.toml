@@ -14,6 +14,11 @@ resolver = "2"
 
 # renogy-rs is the shared library crate (plus dev query/example bins). The shipped
 # tools live in the member crates, each producing its own .deb.
+
+[features]
+# Compiles the in-memory battery emulator into the library (always on under `cfg(test)`).
+emulator = []
+
 [dependencies]
 futures = "0.3"
 crc = "3.3.0"

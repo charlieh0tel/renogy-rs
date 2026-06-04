@@ -3,6 +3,8 @@ pub mod any_transport;
 pub mod bt2;
 pub mod collector;
 pub mod device;
+#[cfg(any(test, feature = "emulator"))]
+pub mod emulator;
 pub mod error;
 pub mod pdu;
 pub mod query;

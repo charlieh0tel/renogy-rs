@@ -36,6 +36,20 @@ macro_rules! define_cell_alarms {
                 }
                 Self { alarms }
             }
+
+            /// Inverse of `from_bits`: pack the per-cell alarm states into the wire u32.
+            #[must_use]
+            pub fn to_bits(&self) -> u32 {
+                let mut value = 0u32;
+                for (i, alarm) in self.alarms.iter().enumerate() {
+                    if *alarm == $over {
+                        value |= 1 << (i + 16);
+                    } else if *alarm == $under {
+                        value |= 1 << i;
+                    }
+                }
+                value
+            }
         }
     };
 }
