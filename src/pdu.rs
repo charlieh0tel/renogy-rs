@@ -111,3 +111,32 @@ impl Pdu {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FunctionCode;
+    use super::Pdu;
+    use crate::error::RenogyError;
+
+    #[test]
+    fn serialize_deserialize_roundtrip() {
+        let pdu = Pdu::new(
+            1,
+            FunctionCode::ReadHoldingRegisters,
+            vec![0x13, 0x88, 0x00, 0x01],
+        );
+        let frame = pdu.serialize();
+        assert_eq!(Pdu::deserialize(&frame).unwrap(), pdu);
+    }
+
+    #[test]
+    fn deserialize_rejects_crc_mismatch() {
+        let pdu = Pdu::new(1, FunctionCode::ReadHoldingRegisters, vec![0x00, 0x01]);
+        let mut frame = pdu.serialize();
+        frame[2] ^= 0x01;
+        assert!(matches!(
+            Pdu::deserialize(&frame),
+            Err(RenogyError::CrcMismatch)
+        ));
+    }
+}

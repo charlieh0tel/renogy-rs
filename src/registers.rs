@@ -501,3 +501,166 @@ impl Register {
         Ok(data)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Register;
+    use super::Value;
+    use crate::alarm::CellVoltageAlarm;
+    use crate::alarm::CellVoltageAlarms;
+    use crate::alarm::Status1;
+    use uom::si::electric_current::ampere;
+    use uom::si::electric_potential::volt;
+    use uom::si::f32::ElectricCurrent;
+    use uom::si::f32::ElectricPotential;
+    use uom::si::f32::ThermodynamicTemperature;
+    use uom::si::thermodynamic_temperature::degree_celsius;
+
+    const TOLERANCE: f32 = 1e-3;
+
+    #[test]
+    fn parse_cell_voltage() {
+        let value = Register::CellVoltage(1).parse_value(&33u16.to_be_bytes());
+        assert_eq!(
+            value,
+            Value::ElectricPotential(ElectricPotential::new::<volt>(3.3))
+        );
+    }
+
+    #[test]
+    fn parse_integer() {
+        let value = Register::CellCount.parse_value(&16u16.to_be_bytes());
+        assert_eq!(value, Value::Integer(16));
+    }
+
+    #[test]
+    fn parse_multiword_current() {
+        let value = Register::RemainingCapacity.parse_value(&50000u32.to_be_bytes());
+        let Value::ElectricCurrent(current) = value else {
+            panic!("wrong type: {value:?}");
+        };
+        assert!((current.get::<ampere>() - 50.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn parse_string() {
+        let value = Register::SnNumber.parse_value(b"12345678");
+        assert_eq!(value, Value::String("12345678".to_string()));
+    }
+
+    #[test]
+    fn parse_cell_voltage_alarms() {
+        let data = 0b0000_0000_0000_0001_0000_0000_0000_0001u32.to_be_bytes();
+        let value = Register::CellVoltageAlarmInfo.parse_value(&data);
+        let expected = CellVoltageAlarms {
+            alarms: [
+                CellVoltageAlarm::OverVoltage,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+            ],
+        };
+        assert_eq!(value, Value::CellVoltageAlarms(expected));
+    }
+
+    #[test]
+    fn parse_status1() {
+        let value = Register::Status1.parse_value(&0b1000_0000_0000_0101u16.to_be_bytes());
+        let expected =
+            Status1::MODULE_UNDER_VOLTAGE | Status1::DISCHARGE_MOSFET | Status1::SHORT_CIRCUIT;
+        assert_eq!(value, Value::Status1(expected));
+    }
+
+    #[test]
+    fn serialize_voltage_limit_roundtrips() {
+        let register = Register::CellOverVoltageLimit;
+        let bytes = register
+            .serialize_value(&Value::ElectricPotential(ElectricPotential::new::<volt>(
+                4.2,
+            )))
+            .unwrap();
+        let Value::ElectricPotential(parsed) = register.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<volt>() - 4.2).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn serialize_temperature_limit_roundtrips() {
+        let register = Register::ChargeOverTemperatureLimit;
+        let bytes = register
+            .serialize_value(&Value::ThermodynamicTemperature(
+                ThermodynamicTemperature::new::<degree_celsius>(60.0),
+            ))
+            .unwrap();
+        let Value::ThermodynamicTemperature(parsed) = register.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<degree_celsius>() - 60.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn serialize_current_limit_roundtrips() {
+        let register = Register::ChargeOver1CurrentLimit;
+        let bytes = register
+            .serialize_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                100.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(parsed) = register.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<ampere>() - 100.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn writability() {
+        assert!(Register::CellHighVoltageLimit.is_writable());
+        assert!(!Register::CellVoltage(1).is_writable());
+    }
+
+    #[test]
+    fn word_quantities() {
+        assert_eq!(Register::CellVoltage(1).quantity(), 1);
+        assert_eq!(Register::RemainingCapacity.quantity(), 2);
+    }
+
+    #[test]
+    fn multi_sensor_addresses_distinct() {
+        assert_ne!(
+            Register::EnvironmentTemperature(1).address(),
+            Register::EnvironmentTemperature(2).address()
+        );
+        assert_ne!(
+            Register::EnvironmentTemperature(1).address(),
+            Register::HeaterTemperature(1).address()
+        );
+    }
+
+    #[test]
+    fn acp_registers_writable_and_distinct() {
+        assert!(Register::AcpBroadcast.is_writable());
+        assert!(Register::AcpConfigure.is_writable());
+        assert!(Register::AcpShake.is_writable());
+        assert_ne!(
+            Register::AcpBroadcast.address(),
+            Register::AcpConfigure.address()
+        );
+        assert_ne!(
+            Register::AcpConfigure.address(),
+            Register::AcpShake.address()
+        );
+    }
+}
