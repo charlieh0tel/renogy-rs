@@ -11,7 +11,7 @@ repository = "https://github.com/charlieh0tel/renogy-rs"
 [dependencies]
 arrow = { version = "58", default-features = false }
 parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
