@@ -162,28 +162,8 @@ async fn query_and_beacon(
 
 fn format_telemetry_packet(summary: &SystemSummary) -> String {
     static SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
-    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 1000;
-
-    // A1: SOC % (0-100)
-    let a1 = (summary.average_soc.round() as u16).min(255);
-    // A2: Remaining capacity in Ah (0-255)
-    let a2 = (summary.total_remaining_ah.round() as u16).min(255);
-    // A3: Voltage (0-255V)
-    let a3 = (summary.average_voltage.round() as u16).min(255);
-    // A4: Current + 128 offset (0-255 = -128 to +127 A)
-    let a4 = ((summary.total_current + 128.0).round() as u16).clamp(0, 255);
-    // A5: Temperature + 40 offset (0-255 = -40 to +215 C)
-    let a5 = summary
-        .average_temperature
-        .map(|t| ((t + 40.0).round() as u16).clamp(0, 255))
-        .unwrap_or(0);
-
-    let binary = summary.alarms().to_aprs_binary_string();
-
-    format!(
-        "T#{:03},{:03},{:03},{:03},{:03},{:03},{}",
-        seq, a1, a2, a3, a4, a5, binary
-    )
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    renogy_aprs::telemetry::format_telemetry_packet_seq(seq, summary)
 }
 
 fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result<(), String> {
@@ -197,38 +177,10 @@ fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result
 
 fn send_definitions(agw: &mut AGW, src: &Call, dst: &Call, callsign: &str) -> Result<(), String> {
     info!("Sending telemetry definitions");
-
-    // Pad callsign to 9 chars for message addressee
-    let padded = format!("{:9}", callsign);
-
-    // PARM - parameter names
-    let parm = format!(
-        ":{}:PARM.SOC,Capacity,Voltage,Current,Temp,OV,UV,OC,OT,UT,SC,Htr,Full",
-        padded
-    );
-    debug!(packet = %parm, "PARM");
-    send_aprs_packet(agw, src, dst, &parm)?;
-
-    // UNIT - units for each parameter
-    let unit = format!(":{}:UNIT.%,Ah,V,A,C", padded);
-    debug!(packet = %unit, "UNIT");
-    send_aprs_packet(agw, src, dst, &unit)?;
-
-    // EQNS - coefficients: a*x^2 + b*x + c for each analog channel
-    // A1: SOC (0-100, no transform) -> 0,1,0
-    // A2: Capacity (0-255 Ah, no transform) -> 0,1,0
-    // A3: Voltage (0-255V, no transform) -> 0,1,0
-    // A4: Current (offset by 128) -> 0,1,-128
-    // A5: Temp (offset by 40) -> 0,1,-40
-    let eqns = format!(":{}:EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40", padded);
-    debug!(packet = %eqns, "EQNS");
-    send_aprs_packet(agw, src, dst, &eqns)?;
-
-    // BITS - bit sense (all active high) + project title
-    let bits = format!(":{}:BITS.11111111,Renogy BMS", padded);
-    debug!(packet = %bits, "BITS");
-    send_aprs_packet(agw, src, dst, &bits)?;
-
+    for packet in renogy_aprs::telemetry::definition_packets(callsign) {
+        debug!(packet = %packet, "definition");
+        send_aprs_packet(agw, src, dst, &packet)?;
+    }
     info!("All definitions sent");
     Ok(())
 }
