@@ -15,6 +15,12 @@ use crate::registers::Register;
 use crate::registers::Value;
 use crate::transport::Transport;
 use crate::transport::TransportType;
+use uom::si::electric_current::ampere;
+use uom::si::electric_potential::volt;
+use uom::si::f32::ElectricCurrent;
+use uom::si::f32::ElectricPotential;
+use uom::si::f32::ThermodynamicTemperature;
+use uom::si::thermodynamic_temperature::degree_celsius;
 
 /// A fake BMS that answers `read_holding_registers` from an in-memory word map.
 pub struct EmulatedBattery {
@@ -41,6 +47,37 @@ impl EmulatedBattery {
                 .insert(base + i as u16, u16::from_be_bytes([chunk[0], lo]));
         }
         Ok(())
+    }
+
+    pub fn set_integer(&mut self, register: Register, value: u32) -> Result<()> {
+        self.set(register, &Value::Integer(value))
+    }
+
+    pub fn set_string(&mut self, register: Register, value: &str) -> Result<()> {
+        self.set(register, &Value::String(value.to_string()))
+    }
+
+    pub fn set_voltage(&mut self, register: Register, volts: f32) -> Result<()> {
+        self.set(
+            register,
+            &Value::ElectricPotential(ElectricPotential::new::<volt>(volts)),
+        )
+    }
+
+    pub fn set_current(&mut self, register: Register, amps: f32) -> Result<()> {
+        self.set(
+            register,
+            &Value::ElectricCurrent(ElectricCurrent::new::<ampere>(amps)),
+        )
+    }
+
+    pub fn set_temperature(&mut self, register: Register, celsius: f32) -> Result<()> {
+        self.set(
+            register,
+            &Value::ThermodynamicTemperature(ThermodynamicTemperature::new::<degree_celsius>(
+                celsius,
+            )),
+        )
     }
 }
 

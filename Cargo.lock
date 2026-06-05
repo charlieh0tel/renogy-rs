@@ -2218,12 +2218,15 @@ name = "renogy-archiver"
 version = "0.1.0"
 dependencies = [
  "arrow",
+ "axum",
  "chrono",
  "clap",
  "parquet",
+ "renogy-rs",
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",

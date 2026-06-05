@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use chrono::NaiveDate;
 use clap::Parser;
 use clap::Subcommand;
+use renogy_archiver::archiver::ExportConfig;
+use renogy_archiver::archiver::run_export;
+use renogy_archiver::archiver::run_status;
 use tracing_subscriber::EnvFilter;
-
-mod archiver;
-
-use archiver::ExportConfig;
 
 #[derive(Parser)]
 #[command(name = "renogy-archiver")]
@@ -70,10 +69,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 start_date,
                 max_days,
             };
-            archiver::run_export(&cfg).await?;
+            run_export(&cfg).await?;
         }
         Command::Status => {
-            archiver::run_status(&args.staging_dir, &args.state_file)?;
+            run_status(&args.staging_dir, &args.state_file)?;
         }
     }
     Ok(())

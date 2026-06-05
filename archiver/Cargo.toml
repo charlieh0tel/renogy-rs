@@ -36,3 +36,8 @@ assets = [
     ["systemd/renogy-archiver-export.timer", "usr/lib/systemd/system/", "644"],
     ["sysusers/renogy-archiver.conf", "usr/lib/sysusers.d/renogy-archiver.conf", "644"],
 ]
+
+[dev-dependencies]
+renogy-rs = { path = "..", features = ["emulator"] }
+axum = "0.8"
+tempfile = "3"
