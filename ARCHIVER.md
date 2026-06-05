@@ -68,6 +68,13 @@ Path: `/var/lib/renogy-archiver/state.json`
   the archiver never advances past a day it could not fully read.
 - An empty day (VM returned no samples) is valid: it commits to state with no file
   written. Empty ≠ error — only a query *failure* blocks advancing.
+- **Readiness guard:** a successful-but-empty `/api/v1/export` is indistinguishable
+  from a real empty day, so a VM that is up but not yet serving (mid-restart/replay)
+  could otherwise advance state past real days permanently. Before the day loop, if
+  state shows prior progress but VM reports **no renogy series at all**, the run aborts
+  without advancing and retries next run. (Residual: a *partial* replay that serves
+  some series but not the target days can still advance past them — run export only
+  once VM is fully ready, e.g. don't trigger it immediately after a VM restart.)
 
 ## VM Export API
 

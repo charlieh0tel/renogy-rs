@@ -106,7 +106,7 @@ fn parse_export_body(body: &str, start_ms: i64, end_ms: i64) -> Result<Vec<Row>,
 }
 
 /// True if any renogy series has a sample at or before the end of `day`.
-async fn series_exists_through(
+pub(crate) async fn series_exists_through(
     client: &reqwest::Client,
     vm_addr: &str,
     day: NaiveDate,

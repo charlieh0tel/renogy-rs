@@ -58,6 +58,18 @@ pub async fn run_export(cfg: &ExportConfig) -> Result<(), ArchiverError> {
 
     let mut state = state::State::load(&cfg.state_file)?;
 
+    // Readiness guard against silent data loss: if we have exported before but VM now
+    // reports no renogy series at all, it is mid-restart/replay or pointed at the wrong
+    // target. A successful-but-empty `/api/v1/export` for a day is indistinguishable
+    // from a real empty day and would advance state past it permanently, so bail
+    // without advancing and let the next run retry once VM is serving data again.
+    if state.last_exported_day.is_some()
+        && !vm_export::series_exists_through(&client, &cfg.vm_addr, today).await?
+    {
+        tracing::warn!("VM reports no renogy series; skipping export run to avoid skipping days");
+        return Ok(());
+    }
+
     let mut day = match state.last_exported_day {
         Some(d) => d + Duration::days(1),
         None => match cfg.start_date {
