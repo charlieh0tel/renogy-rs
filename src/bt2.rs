@@ -17,9 +17,9 @@ use tokio::task::AbortHandle;
 use tokio::time::timeout;
 use zbus::Connection;
 
-pub const BT2_NAME_PREFIX: &str = "BT-TH-";
-pub const BT2_WRITE_CHAR_UUID: &str = "0000ffd1-0000-1000-8000-00805f9b34fb";
-pub const BT2_NOTIFY_CHAR_UUID: &str = "0000fff1-0000-1000-8000-00805f9b34fb";
+const BT2_NAME_PREFIX: &str = "BT-TH-";
+const BT2_WRITE_CHAR_UUID: &str = "0000ffd1-0000-1000-8000-00805f9b34fb";
+const BT2_NOTIFY_CHAR_UUID: &str = "0000fff1-0000-1000-8000-00805f9b34fb";
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -274,7 +274,7 @@ pub async fn discover_bt2_devices() -> Result<Vec<bluebus::DeviceInfo>> {
     discover_bt2_devices_with_options("hci0", DEFAULT_SCAN_DURATION).await
 }
 
-pub async fn discover_bt2_devices_with_options(
+async fn discover_bt2_devices_with_options(
     adapter: &str,
     scan_duration: Duration,
 ) -> Result<Vec<bluebus::DeviceInfo>> {

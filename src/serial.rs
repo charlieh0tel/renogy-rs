@@ -19,7 +19,7 @@ use tokio_modbus::slave::SlaveContext;
 use tokio_serial::SerialPortBuilderExt;
 
 /// Default baud rate for Renogy BMS communication
-pub const DEFAULT_BAUD_RATE: u32 = 9600;
+const DEFAULT_BAUD_RATE: u32 = 9600;
 
 /// Serial transport for Modbus RTU communication.
 ///
