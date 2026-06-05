@@ -46,6 +46,11 @@ pub fn parse_day_from_file(name: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(stem, "%Y-%m-%d").ok()
 }
 
+/// fsync a directory so a rename into it is durable across power loss (Unix).
+pub(crate) fn fsync_dir(dir: &Path) -> std::io::Result<()> {
+    std::fs::File::open(dir)?.sync_all()
+}
+
 /// Export every unarchived day from `last_exported_day + 1` (or the first-run start)
 /// through `today - 1`. Read-only against VM; never deletes staged files. State
 /// advances only after a day is fully and successfully handled, so a failed VM read
@@ -114,6 +119,7 @@ pub async fn run_export(cfg: &ExportConfig) -> Result<(), ArchiverError> {
                 parquet_writer::write_parquet(&tmp, &rows)?;
                 std::fs::File::open(&tmp)?.sync_all()?;
                 std::fs::rename(&tmp, &path)?;
+                fsync_dir(&cfg.staging_dir)?;
                 tracing::info!("{day}: wrote {} rows -> {}", rows.len(), path.display());
                 written += 1;
             }

@@ -31,6 +31,9 @@ impl State {
         std::fs::write(&tmp, &data)?;
         std::fs::File::open(&tmp)?.sync_all()?;
         std::fs::rename(&tmp, path)?;
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            crate::archiver::fsync_dir(parent)?;
+        }
         Ok(())
     }
 }
