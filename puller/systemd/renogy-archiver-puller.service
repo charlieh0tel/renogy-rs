@@ -2,6 +2,8 @@
 Description=Pull Renogy Parquet archives from RPi4
 After=network-online.target tailscaled.service
 Wants=network-online.target
+StartLimitIntervalSec=1800
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
@@ -11,7 +13,6 @@ EnvironmentFile=/etc/default/renogy-archiver-puller
 ExecStart=/usr/bin/renogy-archiver-puller pull
 Restart=on-failure
 RestartSec=300
-StartLimitBurst=3
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectKernelTunables=yes
