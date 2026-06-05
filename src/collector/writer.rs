@@ -1,4 +1,4 @@
-use crate::collector::SampleBuffer;
+use crate::collector::buffer::SampleBuffer;
 use crate::collector::metrics::batch_to_influx;
 use crate::query::BatteryInfo;
 use reqwest::Client;
