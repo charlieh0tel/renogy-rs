@@ -71,6 +71,12 @@ pub async fn export_day(
         .text()
         .await?;
 
+    parse_export_body(&body, start_ms, end_ms)
+}
+
+/// Parse VM `/api/v1/export` newline-delimited JSON into rows, clipping to
+/// `[start_ms, end_ms)` and sorting by time. Pure -- no I/O -- so it is unit-tested.
+fn parse_export_body(body: &str, start_ms: i64, end_ms: i64) -> Result<Vec<Row>, ArchiverError> {
     let mut rows = Vec::new();
     for line in body.lines() {
         let line = line.trim();
@@ -148,4 +154,61 @@ pub async fn earliest_day(
         }
     }
     Ok(Some(lo))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::day_bounds_ms;
+    use super::parse_export_body;
+    use chrono::NaiveDate;
+
+    fn day(y: i32, m: u32, d: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn day_bounds_span_one_utc_day() {
+        let (start, end) = day_bounds_ms(day(2026, 5, 31));
+        assert_eq!(end - start, 86_400_000);
+    }
+
+    #[test]
+    fn parse_extracts_rows_and_labels() {
+        let (start, end) = day_bounds_ms(day(2026, 5, 31));
+        let ts = start + 1000;
+        let body = format!(
+            r#"{{"metric":{{"__name__":"renogy_soc_percent_value","battery":"SN1","job":"x"}},"values":[55.0],"timestamps":[{ts}]}}"#
+        );
+        let rows = parse_export_body(&body, start, end).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].metric, "renogy_soc_percent_value");
+        assert_eq!(rows[0].value, 55.0);
+        // job is dropped; battery is kept.
+        assert_eq!(rows[0].labels, r#"{"battery":"SN1"}"#);
+    }
+
+    #[test]
+    fn parse_clips_to_day_bounds() {
+        let (start, end) = day_bounds_ms(day(2026, 5, 31));
+        let body = format!(
+            r#"{{"metric":{{"__name__":"m"}},"values":[1.0,2.0,3.0],"timestamps":[{},{},{}]}}"#,
+            start - 1,
+            start,
+            end
+        );
+        // start-1 (prev day) and end (next day's midnight) are excluded; only `start`.
+        let rows = parse_export_body(&body, start, end).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].ts_ms, start);
+    }
+
+    #[test]
+    fn parse_skips_blank_lines_and_empty_labels() {
+        let body = r#"
+{"metric":{"__name__":"m"},"values":[1.0],"timestamps":[10]}
+"#;
+        let rows = parse_export_body(body, 0, 100).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].labels, "");
+    }
 }

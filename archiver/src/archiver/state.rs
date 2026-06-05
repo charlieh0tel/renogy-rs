@@ -34,3 +34,30 @@ impl State {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::State;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn missing_file_is_default() {
+        let path = std::env::temp_dir().join("renogy-archiver-no-such-state.json");
+        let _ = std::fs::remove_file(&path);
+        let state = State::load(&path).unwrap();
+        assert_eq!(state.last_exported_day, None);
+    }
+
+    #[test]
+    fn save_then_load_roundtrips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("state.json");
+        let day = NaiveDate::from_ymd_opt(2026, 5, 31).unwrap();
+        State {
+            last_exported_day: Some(day),
+        }
+        .save(&path)
+        .unwrap();
+        assert_eq!(State::load(&path).unwrap().last_exported_day, Some(day));
+    }
+}

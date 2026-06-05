@@ -61,3 +61,69 @@ pub fn write_parquet(path: &Path, rows: &[Row]) -> Result<(), ArchiverError> {
     writer.close()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::schema;
+    use super::write_parquet;
+    use crate::archiver::vm_export::Row;
+    use arrow::array::Array;
+    use arrow::array::Float64Array;
+    use arrow::array::StringArray;
+    use arrow::datatypes::DataType;
+    use arrow::datatypes::TimeUnit;
+    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+    use std::fs::File;
+
+    #[test]
+    fn schema_timestamp_is_utc_millis() {
+        let field = schema().field(0).clone();
+        assert_eq!(field.name(), "timestamp");
+        assert_eq!(
+            field.data_type(),
+            &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
+        );
+    }
+
+    #[test]
+    fn write_then_read_roundtrips() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("day.parquet");
+        let rows = vec![
+            Row {
+                ts_ms: 1_700_000_000_000,
+                metric: "renogy_soc_percent_value".to_string(),
+                value: 55.0,
+                labels: r#"{"battery":"SN1"}"#.to_string(),
+            },
+            Row {
+                ts_ms: 1_700_000_001_000,
+                metric: "renogy_module_voltage_value".to_string(),
+                value: 13.2,
+                labels: String::new(),
+            },
+        ];
+        write_parquet(&path, &rows).unwrap();
+
+        let mut reader = ParquetRecordBatchReaderBuilder::try_new(File::open(&path).unwrap())
+            .unwrap()
+            .build()
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+        assert_eq!(batch.num_rows(), 2);
+
+        let metric = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        let value = batch
+            .column(2)
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .unwrap();
+        assert_eq!(metric.value(0), "renogy_soc_percent_value");
+        assert_eq!(value.value(0), 55.0);
+        assert_eq!(metric.value(1), "renogy_module_voltage_value");
+    }
+}
