@@ -1,6 +1,7 @@
 use agw::AGW;
 use agw::Call;
 use clap::Parser;
+use renogy_aprs::telemetry::definition_packets;
 use renogy_rs::system_summary::SystemSummary;
 use renogy_rs::vm_client::VmClient;
 use std::time::Duration;
@@ -76,45 +77,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut agw: Option<AGW> = None;
 
     loop {
-        // Ensure we have an AGW connection
-        if agw.is_none() {
-            debug!(agw_addr = %agw_addr, "Connecting to AGW");
-            match AGW::new(&agw_addr) {
-                Ok(conn) => {
-                    info!("Connected to AGW");
-                    agw = Some(conn);
-                }
-                Err(e) => {
-                    error!(error = %e, "Failed to connect to AGW at {}", agw_addr);
-                    tokio::time::sleep(Duration::from_secs(args.interval)).await;
-                    continue;
+        // Ensure we have an AGW connection. AGW I/O is blocking, so the connect
+        // and all sends run on a blocking thread to keep the reactor free.
+        let conn = match agw.take() {
+            Some(conn) => conn,
+            None => {
+                debug!(agw_addr = %agw_addr, "Connecting to AGW");
+                let addr = agw_addr.clone();
+                match tokio::task::spawn_blocking(move || AGW::new(&addr))
+                    .await
+                    .expect("AGW connect task panicked")
+                {
+                    Ok(conn) => {
+                        info!("Connected to AGW");
+                        conn
+                    }
+                    Err(e) => {
+                        error!(error = %e, "Failed to connect to AGW at {}", agw_addr);
+                        tokio::time::sleep(Duration::from_secs(args.interval)).await;
+                        continue;
+                    }
                 }
             }
-        }
+        };
 
-        let agw_conn = agw.as_mut().unwrap();
-
-        // Send definitions on startup and every 30 minutes
-        if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
-            match send_definitions(agw_conn, &src, &dst, &args.ssid) {
-                Ok(()) => info!("Telemetry definitions sent"),
+        // Send definitions on startup and every 30 minutes.
+        let conn = if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
+            info!("Sending telemetry definitions");
+            let packets = definition_packets(&args.ssid).to_vec();
+            let (conn, result) = send_packets(conn, src.clone(), dst.clone(), packets).await;
+            match result {
+                Ok(()) => {
+                    info!("Telemetry definitions sent");
+                    last_definitions = Instant::now();
+                    conn
+                }
                 Err(e) => {
                     error!(error = %e, "Failed to send definitions");
-                    agw = None;
                     continue;
                 }
             }
-            last_definitions = Instant::now();
-        }
+        } else {
+            conn
+        };
 
-        match query_and_beacon(&vm_client, agw_conn, &src, &dst).await {
+        let packet = match build_beacon_packet(&vm_client).await {
+            Ok(packet) => packet,
+            Err(e) => {
+                error!(error = %e, "Failed to build beacon");
+                agw = Some(conn);
+                tokio::time::sleep(Duration::from_secs(args.interval)).await;
+                continue;
+            }
+        };
+        let (conn, result) = send_packets(conn, src.clone(), dst.clone(), vec![packet]).await;
+        match result {
             Ok(()) => info!("Telemetry beacon sent"),
             Err(e) => {
                 error!(error = %e, "Failed to send beacon");
-                agw = None;
                 continue;
             }
         }
+        agw = Some(conn);
 
         if args.once {
             break;
@@ -127,12 +151,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn query_and_beacon(
-    vm_client: &VmClient,
-    agw: &mut AGW,
-    src: &Call,
-    dst: &Call,
-) -> Result<(), String> {
+/// Send `packets` over the (blocking) AGW connection on a blocking thread,
+/// returning the connection so the caller can reuse it.
+async fn send_packets(
+    mut agw: AGW,
+    src: Call,
+    dst: Call,
+    packets: Vec<String>,
+) -> (AGW, Result<(), String>) {
+    tokio::task::spawn_blocking(move || {
+        for packet in &packets {
+            if let Err(e) = send_aprs_packet(&mut agw, &src, &dst, packet) {
+                return (agw, Err(e));
+            }
+        }
+        (agw, Ok(()))
+    })
+    .await
+    .expect("AGW send task panicked")
+}
+
+async fn build_beacon_packet(vm_client: &VmClient) -> Result<String, String> {
     debug!("Querying batteries from VictoriaMetrics");
     let batteries = vm_client
         .query_all_batteries()
@@ -154,10 +193,7 @@ async fn query_and_beacon(
 
     let packet = format_telemetry_packet(&summary);
     debug!(packet = %packet, "Formatted telemetry packet");
-
-    send_aprs_packet(agw, src, dst, &packet)?;
-
-    Ok(())
+    Ok(packet)
 }
 
 fn format_telemetry_packet(summary: &SystemSummary) -> String {
@@ -172,15 +208,5 @@ fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result
         .map_err(|e| format!("Failed to send packet: {}", e))?;
 
     debug!("Packet sent successfully");
-    Ok(())
-}
-
-fn send_definitions(agw: &mut AGW, src: &Call, dst: &Call, callsign: &str) -> Result<(), String> {
-    info!("Sending telemetry definitions");
-    for packet in renogy_aprs::telemetry::definition_packets(callsign) {
-        debug!(packet = %packet, "definition");
-        send_aprs_packet(agw, src, dst, &packet)?;
-    }
-    info!("All definitions sent");
     Ok(())
 }
