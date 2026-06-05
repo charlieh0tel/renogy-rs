@@ -768,3 +768,54 @@ fn format_y_labels(bounds: [f64; 2], width: usize) -> Vec<Span<'static>> {
         Span::raw(format_y_label(bounds[1], width)),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::calculate_y_bounds;
+    use super::downsample_minmax;
+    use super::soc_bar;
+
+    #[test]
+    fn soc_bar_fills_proportionally() {
+        let bar = soc_bar(50.0, 40);
+        assert_eq!(bar.chars().count(), 40);
+        assert_eq!(bar.chars().filter(|&c| c == '█').count(), 20);
+    }
+
+    #[test]
+    fn soc_bar_clamps_out_of_range() {
+        assert_eq!(soc_bar(150.0, 10).chars().filter(|&c| c == '█').count(), 10);
+        assert_eq!(soc_bar(-5.0, 10).chars().filter(|&c| c == '█').count(), 0);
+    }
+
+    #[test]
+    fn downsample_keeps_small_series() {
+        let data = vec![(0.0, 1.0), (1.0, 2.0), (2.0, 3.0)];
+        assert_eq!(downsample_minmax(&data, 10), data);
+    }
+
+    #[test]
+    fn downsample_bounds_large_series() {
+        let data: Vec<(f64, f64)> = (0..1000).map(|i| (i as f64, i as f64)).collect();
+        assert!(downsample_minmax(&data, 50).len() <= 50);
+    }
+
+    #[test]
+    fn y_bounds_default_for_empty() {
+        assert_eq!(calculate_y_bounds(&[], None), [0.0, 1.0]);
+    }
+
+    #[test]
+    fn y_bounds_honor_fixed() {
+        assert_eq!(
+            calculate_y_bounds(&[(0.0, 5.0)], Some((0.0, 100.0))),
+            [0.0, 100.0]
+        );
+    }
+
+    #[test]
+    fn y_bounds_pad_data_range() {
+        let bounds = calculate_y_bounds(&[(0.0, 1.0), (1.0, 3.0)], None);
+        assert!(bounds[0] < 1.0 && bounds[1] > 3.0);
+    }
+}

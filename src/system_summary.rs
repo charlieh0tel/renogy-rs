@@ -144,3 +144,38 @@ impl SystemAlarms {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SystemAlarms;
+    use crate::alarm::Status1;
+    use crate::alarm::Status2;
+
+    #[test]
+    fn maps_status_bits_to_alarms() {
+        let alarms = SystemAlarms::from_status(
+            Status1::CELL_OVER_VOLTAGE | Status1::SHORT_CIRCUIT,
+            Status2::HEATER_ON,
+        );
+        assert!(alarms.contains(SystemAlarms::OVER_VOLTAGE));
+        assert!(alarms.contains(SystemAlarms::SHORT_CIRCUIT));
+        assert!(alarms.contains(SystemAlarms::HEATER_ON));
+        assert!(!alarms.contains(SystemAlarms::UNDER_VOLTAGE));
+    }
+
+    #[test]
+    fn empty_status_has_no_alarms() {
+        let alarms = SystemAlarms::from_status(Status1::empty(), Status2::empty());
+        assert_eq!(alarms, SystemAlarms::empty());
+        assert_eq!(alarms.to_aprs_binary_string(), "00000000");
+    }
+
+    #[test]
+    fn aprs_binary_string_is_lsb_first() {
+        // OVER_VOLTAGE is bit 0 -> first character.
+        assert_eq!(
+            SystemAlarms::OVER_VOLTAGE.to_aprs_binary_string(),
+            "10000000"
+        );
+    }
+}
