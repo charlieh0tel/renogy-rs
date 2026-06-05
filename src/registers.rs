@@ -628,9 +628,12 @@ impl Register {
 mod tests {
     use super::Register;
     use super::Value;
+    use crate::alarm::CellTemperatureAlarm;
+    use crate::alarm::CellTemperatureAlarms;
     use crate::alarm::CellVoltageAlarm;
     use crate::alarm::CellVoltageAlarms;
     use crate::alarm::Status1;
+    use crate::alarm::Status2;
     use uom::si::electric_current::ampere;
     use uom::si::electric_potential::volt;
     use uom::si::f32::ElectricCurrent;
@@ -826,5 +829,104 @@ mod tests {
             .encode_value(&Value::CellVoltageAlarms(original))
             .unwrap();
         assert_eq!(reg.parse_value(&bytes), Value::CellVoltageAlarms(original));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_signed_temperature() {
+        let reg = Register::ChargeOverTemperatureLimit;
+        let bytes = reg
+            .encode_value(&Value::ThermodynamicTemperature(
+                ThermodynamicTemperature::new::<degree_celsius>(-12.5),
+            ))
+            .unwrap();
+        let Value::ThermodynamicTemperature(t) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((t.get::<degree_celsius>() + 12.5).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_unsigned_temperature() {
+        let reg = Register::CellTemperature(1);
+        let bytes = reg
+            .encode_value(&Value::ThermodynamicTemperature(
+                ThermodynamicTemperature::new::<degree_celsius>(25.0),
+            ))
+            .unwrap();
+        let Value::ThermodynamicTemperature(t) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((t.get::<degree_celsius>() - 25.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_signed_current() {
+        let reg = Register::Current;
+        let bytes = reg
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                -5.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(c) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((c.get::<ampere>() + 5.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_capacity() {
+        let reg = Register::RemainingCapacity;
+        let bytes = reg
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                50.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(c) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((c.get::<ampere>() - 50.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_string() {
+        let reg = Register::SnNumber;
+        let bytes = reg
+            .encode_value(&Value::String("ABCD".to_string()))
+            .unwrap();
+        let Value::String(s) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert_eq!(s.trim_matches('\0'), "ABCD");
+    }
+
+    #[test]
+    fn encode_value_roundtrips_status2() {
+        let reg = Register::Status2;
+        let status = Status2::HEATER_ON | Status2::FULLY_CHARGED;
+        let bytes = reg.encode_value(&Value::Status2(status)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Status2(status));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_unique_id() {
+        let reg = Register::UniqueIdentificationCode;
+        let bytes = reg.encode_value(&Value::Integer(0xDEAD_BEEF)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Integer(0xDEAD_BEEF));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_cell_temperature_alarms() {
+        let reg = Register::CellTemperatureAlarmInfo;
+        let mut alarms = [CellTemperatureAlarm::Normal; 16];
+        alarms[0] = CellTemperatureAlarm::OverTemperature;
+        alarms[2] = CellTemperatureAlarm::UnderTemperature;
+        let original = CellTemperatureAlarms { alarms };
+        let bytes = reg
+            .encode_value(&Value::CellTemperatureAlarms(original))
+            .unwrap();
+        assert_eq!(
+            reg.parse_value(&bytes),
+            Value::CellTemperatureAlarms(original)
+        );
     }
 }
