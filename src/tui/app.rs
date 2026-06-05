@@ -14,7 +14,7 @@ pub enum Tab {
     Graphs,
 }
 
-pub const ZOOM_LEVELS: &[(u64, &str)] = &[
+const ZOOM_LEVELS: &[(u64, &str)] = &[
     (60, "1 min"),
     (300, "5 min"),
     (900, "15 min"),
