@@ -408,104 +408,12 @@ impl Register {
         )
     }
 
-    pub fn serialize_value(&self, value: &Value) -> Result<Vec<u8>> {
-        let mut data = vec![0u8; (self.quantity() * 2) as usize];
-
-        match (self, value) {
-            (
-                Register::ChargeVoltageLimit | Register::DischargeVoltageLimit,
-                Value::ElectricPotential(voltage),
-            ) => {
-                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
-            (
-                Register::ChargeCurrentLimit | Register::DischargeCurrentLimit,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 100.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
-            (Register::CycleNumber, Value::Integer(value)) => {
-                BigEndian::write_u16(&mut data, *value as u16);
-            }
-            (
-                Register::RemainingCapacity | Register::TotalCapacity,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 1000.0) as u32;
-                BigEndian::write_u32(&mut data, raw_value);
-            }
-            (
-                Register::CellOverVoltageLimit
-                | Register::CellHighVoltageLimit
-                | Register::CellLowVoltageLimit
-                | Register::CellUnderVoltageLimit
-                | Register::ModuleOverVoltageLimit
-                | Register::ModuleHighVoltageLimit
-                | Register::ModuleLowVoltageLimit
-                | Register::ModuleUnderVoltageLimit,
-                Value::ElectricPotential(voltage),
-            ) => {
-                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
-            (
-                Register::ChargeOverTemperatureLimit
-                | Register::ChargeHighTemperatureLimit
-                | Register::ChargeLowTemperatureLimit
-                | Register::ChargeUnderTemperatureLimit
-                | Register::DischargeOverTemperatureLimit
-                | Register::DischargeHighTemperatureLimit
-                | Register::DischargeLowTemperatureLimit
-                | Register::DischargeUnderTemperatureLimit,
-                Value::ThermodynamicTemperature(temp),
-            ) => {
-                let raw_value = (temp.get::<degree_celsius>() * 10.0) as i16;
-                BigEndian::write_i16(&mut data, raw_value);
-            }
-            (
-                Register::ChargeOver2CurrentLimit
-                | Register::ChargeOver1CurrentLimit
-                | Register::ChargeHighCurrentLimit
-                | Register::DischargeOver2CurrentLimit
-                | Register::DischargeOver1CurrentLimit
-                | Register::DischargeHighCurrentLimit,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 100.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
-            (
-                Register::ShutdownCommand
-                | Register::DeviceId
-                | Register::LockControl
-                | Register::TestReady
-                | Register::ChargePowerSetting
-                | Register::DischargePowerSetting
-                | Register::AcpBroadcast
-                | Register::AcpConfigure
-                | Register::AcpShake,
-                Value::Integer(value),
-            ) => {
-                BigEndian::write_u16(&mut data, *value as u16);
-            }
-            (Register::UniqueIdentificationCode, Value::Integer(value)) => {
-                BigEndian::write_u32(&mut data, *value);
-            }
-            _ => {
-                return Err(RenogyError::UnsupportedOperation);
-            }
-        }
-
-        Ok(data)
-    }
-
     /// Inverse of `parse_value`: encode a `Value` into this register's raw bytes.
     ///
-    /// Unlike `serialize_value` (which only covers writable config registers), this
-    /// covers every register the parser reads, so an emulator can produce a coherent
-    /// response for any monitoring register.
+    /// Covers every register the parser reads (writable config registers plus the
+    /// read-only monitoring ones), so it round-trips with `parse_value` and is the
+    /// single source of truth for serialization (an emulator can produce a coherent
+    /// response for any register).
     pub fn encode_value(&self, value: &Value) -> Result<Vec<u8>> {
         let mut data = vec![0u8; (self.quantity() * 2) as usize];
 
@@ -709,10 +617,10 @@ mod tests {
     }
 
     #[test]
-    fn serialize_voltage_limit_roundtrips() {
+    fn encode_writable_voltage_limit_roundtrips() {
         let register = Register::CellOverVoltageLimit;
         let bytes = register
-            .serialize_value(&Value::ElectricPotential(ElectricPotential::new::<volt>(
+            .encode_value(&Value::ElectricPotential(ElectricPotential::new::<volt>(
                 4.2,
             )))
             .unwrap();
@@ -723,24 +631,10 @@ mod tests {
     }
 
     #[test]
-    fn serialize_temperature_limit_roundtrips() {
-        let register = Register::ChargeOverTemperatureLimit;
-        let bytes = register
-            .serialize_value(&Value::ThermodynamicTemperature(
-                ThermodynamicTemperature::new::<degree_celsius>(60.0),
-            ))
-            .unwrap();
-        let Value::ThermodynamicTemperature(parsed) = register.parse_value(&bytes) else {
-            panic!("wrong type");
-        };
-        assert!((parsed.get::<degree_celsius>() - 60.0).abs() < TOLERANCE);
-    }
-
-    #[test]
-    fn serialize_current_limit_roundtrips() {
+    fn encode_unsigned_current_limit_roundtrips() {
         let register = Register::ChargeOver1CurrentLimit;
         let bytes = register
-            .serialize_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
                 100.0,
             )))
             .unwrap();
