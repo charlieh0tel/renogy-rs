@@ -57,7 +57,10 @@ pub(crate) fn fsync_dir(dir: &Path) -> std::io::Result<()> {
 /// aborts without skipping the day.
 pub async fn run_export(cfg: &ExportConfig) -> Result<(), ArchiverError> {
     std::fs::create_dir_all(&cfg.staging_dir)?;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()?;
     let today = Utc::now().date_naive();
     let last_full = today - Duration::days(1);
 

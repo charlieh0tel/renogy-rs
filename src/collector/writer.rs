@@ -17,7 +17,11 @@ impl VmWriter {
         let url = format!("{}/write", vm_url.trim_end_matches('/'));
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(Duration::from_secs(30))
+                .connect_timeout(Duration::from_secs(10))
+                .build()
+                .expect("build reqwest client"),
             url,
             buffer,
             cancel,

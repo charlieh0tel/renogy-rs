@@ -9,6 +9,8 @@ use crate::query::BatteryInfo;
 pub enum VmError {
     #[error("prometheus query error: {0}")]
     Query(#[from] prometheus_http_query::Error),
+    #[error("http client: {0}")]
+    Http(#[from] reqwest::Error),
     #[error("unexpected response type")]
     UnexpectedResponse,
     #[error("no batteries found")]
@@ -26,7 +28,11 @@ pub struct VmClient {
 
 impl VmClient {
     pub fn new(base_url: &str) -> Result<Self, VmError> {
-        let client = Client::try_from(base_url)?;
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()?;
+        let client = Client::from(http, base_url)?;
         Ok(Self { client })
     }
 
