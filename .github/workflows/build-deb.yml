@@ -42,7 +42,7 @@ jobs:
       artifact-suffix: puller
     secrets: inherit
 
-  system-tests:
+  tests:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +53,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libdbus-1-dev rsync
+      - name: Run workspace unit + integration tests
+        run: cargo test --workspace
       - name: Run gated system tests
         run: |
           cargo test -p renogy-archiver --test system -- --ignored
