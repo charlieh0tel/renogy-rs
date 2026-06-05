@@ -2240,6 +2240,7 @@ dependencies = [
  "chrono",
  "clap",
  "fs2",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
 ]
