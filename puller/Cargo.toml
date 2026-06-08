@@ -23,7 +23,6 @@ tracing-subscriber.workspace = true
 tempfile.workspace = true
 
 [package.metadata.deb]
-maintainer = "Christopher Hoover <ch@murgatroid.com>"
 copyright = "2024-2026, Christopher Hoover"
 section = "utils"
 priority = "optional"

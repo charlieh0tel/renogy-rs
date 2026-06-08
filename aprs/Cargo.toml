@@ -21,7 +21,6 @@ chrono.workspace = true
 
 [package.metadata.deb]
 name = "renogy-aprs"
-maintainer = "Christopher Hoover <ch@murgatroid.com>"
 copyright = "2024-2026, Christopher Hoover"
 section = "hamradio"
 priority = "optional"
