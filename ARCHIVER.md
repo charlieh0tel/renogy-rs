@@ -8,7 +8,7 @@ Tailscale network periodically *pulls* the staged files over rsync/SSH and remov
 them from the RPi4 on success.
 
 This keeps the RPi4's VM instance bounded to a reasonable rolling retention window
-(e.g. 180 days) while preserving all data permanently on a remote Ubuntu host as a
+(e.g. 12 months) while preserving all data permanently on a remote Ubuntu host as a
 Parquet corpus for long-term offline analysis (pandas / pyarrow / DuckDB / Jupyter /
 Colab).
 
@@ -31,7 +31,7 @@ not wired into Grafana.
 
 ```
 RPi4
-  VictoriaMetrics (localhost:8428, ~180d retention)
+  VictoriaMetrics (localhost:8428, ~12mo retention)
       |  HTTP /api/v1/export
       v
   renogy-archiver export            (systemd timer, daily)
@@ -527,19 +527,19 @@ only after the full history is archived and verified.
 4. **Verify** the archive host holds a complete, contiguous set of daily files
    spanning VM's full range — check the first/last dates and spot-check a few days'
    row counts against the same range queried from VM.
-5. **Only now** set `-retentionPeriod=180d` on VM (in its
-   `ExecStart`/override). VM drops >180d data on its next merge cycle.
+5. **Only now** set `-retentionPeriod=12` (months) on VM (in its
+   `ExecStart`/override). VM drops data older than 12 months on its next merge cycle.
 
 ```
--retentionPeriod=180d
+-retentionPeriod=12
 ```
 
-**Steady-state guard:** once 180d is active, data older than 180d that was never
-exported is unrecoverable. The daily export keeps `last_exported_day` within ~1 day of
-now, far inside the window — but if export breaks and goes unnoticed for >180d, days
-would age out before archiving. Monitor `renogy-archiver status` (or alert on
-`last_exported_day` falling behind) so a stalled export is caught long before the
-180d horizon.
+**Steady-state guard:** once the 12-month window is active, data older than 12 months
+that was never exported is unrecoverable. The daily export keeps `last_exported_day`
+within ~1 day of now, far inside the window — but if export breaks and goes unnoticed
+for >12 months, days would age out before archiving. Monitor `renogy-archiver status`
+(or alert on `last_exported_day` falling behind) so a stalled export is caught long
+before the 12-month horizon.
 
 ### Large initial backfill (our case)
 
