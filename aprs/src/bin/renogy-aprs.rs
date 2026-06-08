@@ -1,8 +1,14 @@
-use agw::{AGW, Call};
+use agw::AGW;
+use agw::Call;
 use clap::Parser;
-use renogy_rs::{SystemSummary, VmClient};
-use std::time::{Duration, Instant};
-use tracing::{debug, error, info};
+use renogy_aprs::telemetry::definition_packets;
+use renogy_rs::system_summary::SystemSummary;
+use renogy_rs::vm_client::VmClient;
+use std::time::Duration;
+use std::time::Instant;
+use tracing::debug;
+use tracing::error;
+use tracing::info;
 
 const DEFAULT_BEACON_INTERVAL: u64 = 600; // 10 minutes
 const DEFINITION_INTERVAL: u64 = 1800; // 30 minutes
@@ -71,45 +77,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut agw: Option<AGW> = None;
 
     loop {
-        // Ensure we have an AGW connection
-        if agw.is_none() {
-            debug!(agw_addr = %agw_addr, "Connecting to AGW");
-            match AGW::new(&agw_addr) {
-                Ok(conn) => {
-                    info!("Connected to AGW");
-                    agw = Some(conn);
-                }
-                Err(e) => {
-                    error!(error = %e, "Failed to connect to AGW at {}", agw_addr);
-                    tokio::time::sleep(Duration::from_secs(args.interval)).await;
-                    continue;
+        // Ensure we have an AGW connection. AGW I/O is blocking, so the connect
+        // and all sends run on a blocking thread to keep the reactor free.
+        let conn = match agw.take() {
+            Some(conn) => conn,
+            None => {
+                debug!(agw_addr = %agw_addr, "Connecting to AGW");
+                let addr = agw_addr.clone();
+                match tokio::task::spawn_blocking(move || AGW::new(&addr))
+                    .await
+                    .expect("AGW connect task panicked")
+                {
+                    Ok(conn) => {
+                        info!("Connected to AGW");
+                        conn
+                    }
+                    Err(e) => {
+                        error!(error = %e, "Failed to connect to AGW at {}", agw_addr);
+                        tokio::time::sleep(Duration::from_secs(args.interval)).await;
+                        continue;
+                    }
                 }
             }
-        }
+        };
 
-        let agw_conn = agw.as_mut().unwrap();
-
-        // Send definitions on startup and every 30 minutes
-        if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
-            match send_definitions(agw_conn, &src, &dst, &args.ssid) {
-                Ok(()) => info!("Telemetry definitions sent"),
+        // Send definitions on startup and every 30 minutes.
+        let conn = if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
+            info!("Sending telemetry definitions");
+            let packets = definition_packets(&args.ssid).to_vec();
+            let (conn, result) = send_packets(conn, src.clone(), dst.clone(), packets).await;
+            match result {
+                Ok(()) => {
+                    info!("Telemetry definitions sent");
+                    last_definitions = Instant::now();
+                    conn
+                }
                 Err(e) => {
                     error!(error = %e, "Failed to send definitions");
-                    agw = None;
                     continue;
                 }
             }
-            last_definitions = Instant::now();
-        }
+        } else {
+            conn
+        };
 
-        match query_and_beacon(&vm_client, agw_conn, &src, &dst).await {
+        let packet = match build_beacon_packet(&vm_client).await {
+            Ok(packet) => packet,
+            Err(e) => {
+                error!(error = %e, "Failed to build beacon");
+                agw = Some(conn);
+                tokio::time::sleep(Duration::from_secs(args.interval)).await;
+                continue;
+            }
+        };
+        let (conn, result) = send_packets(conn, src.clone(), dst.clone(), vec![packet]).await;
+        match result {
             Ok(()) => info!("Telemetry beacon sent"),
             Err(e) => {
                 error!(error = %e, "Failed to send beacon");
-                agw = None;
                 continue;
             }
         }
+        agw = Some(conn);
 
         if args.once {
             break;
@@ -122,12 +151,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn query_and_beacon(
-    vm_client: &VmClient,
-    agw: &mut AGW,
-    src: &Call,
-    dst: &Call,
-) -> Result<(), String> {
+/// Send `packets` over the (blocking) AGW connection on a blocking thread,
+/// returning the connection so the caller can reuse it.
+async fn send_packets(
+    mut agw: AGW,
+    src: Call,
+    dst: Call,
+    packets: Vec<String>,
+) -> (AGW, Result<(), String>) {
+    tokio::task::spawn_blocking(move || {
+        for packet in &packets {
+            if let Err(e) = send_aprs_packet(&mut agw, &src, &dst, packet) {
+                return (agw, Err(e));
+            }
+        }
+        (agw, Ok(()))
+    })
+    .await
+    .expect("AGW send task panicked")
+}
+
+async fn build_beacon_packet(vm_client: &VmClient) -> Result<String, String> {
     debug!("Querying batteries from VictoriaMetrics");
     let batteries = vm_client
         .query_all_batteries()
@@ -149,36 +193,13 @@ async fn query_and_beacon(
 
     let packet = format_telemetry_packet(&summary);
     debug!(packet = %packet, "Formatted telemetry packet");
-
-    send_aprs_packet(agw, src, dst, &packet)?;
-
-    Ok(())
+    Ok(packet)
 }
 
 fn format_telemetry_packet(summary: &SystemSummary) -> String {
     static SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
-    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 1000;
-
-    // A1: SOC % (0-100)
-    let a1 = (summary.average_soc.round() as u16).min(255);
-    // A2: Remaining capacity in Ah (0-255)
-    let a2 = (summary.total_remaining_ah.round() as u16).min(255);
-    // A3: Voltage (0-255V)
-    let a3 = (summary.average_voltage.round() as u16).min(255);
-    // A4: Current + 128 offset (0-255 = -128 to +127 A)
-    let a4 = ((summary.total_current + 128.0).round() as u16).clamp(0, 255);
-    // A5: Temperature + 40 offset (0-255 = -40 to +215 C)
-    let a5 = summary
-        .average_temperature
-        .map(|t| ((t + 40.0).round() as u16).clamp(0, 255))
-        .unwrap_or(0);
-
-    let binary = summary.alarms().to_aprs_binary_string();
-
-    format!(
-        "T#{:03},{:03},{:03},{:03},{:03},{:03},{}",
-        seq, a1, a2, a3, a4, a5, binary
-    )
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    renogy_aprs::telemetry::format_telemetry_packet_seq(seq, summary)
 }
 
 fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result<(), String> {
@@ -187,43 +208,5 @@ fn send_aprs_packet(agw: &mut AGW, src: &Call, dst: &Call, data: &str) -> Result
         .map_err(|e| format!("Failed to send packet: {}", e))?;
 
     debug!("Packet sent successfully");
-    Ok(())
-}
-
-fn send_definitions(agw: &mut AGW, src: &Call, dst: &Call, callsign: &str) -> Result<(), String> {
-    info!("Sending telemetry definitions");
-
-    // Pad callsign to 9 chars for message addressee
-    let padded = format!("{:9}", callsign);
-
-    // PARM - parameter names
-    let parm = format!(
-        ":{}:PARM.SOC,Capacity,Voltage,Current,Temp,OV,UV,OC,OT,UT,SC,Htr,Full",
-        padded
-    );
-    debug!(packet = %parm, "PARM");
-    send_aprs_packet(agw, src, dst, &parm)?;
-
-    // UNIT - units for each parameter
-    let unit = format!(":{}:UNIT.%,Ah,V,A,C", padded);
-    debug!(packet = %unit, "UNIT");
-    send_aprs_packet(agw, src, dst, &unit)?;
-
-    // EQNS - coefficients: a*x^2 + b*x + c for each analog channel
-    // A1: SOC (0-100, no transform) -> 0,1,0
-    // A2: Capacity (0-255 Ah, no transform) -> 0,1,0
-    // A3: Voltage (0-255V, no transform) -> 0,1,0
-    // A4: Current (offset by 128) -> 0,1,-128
-    // A5: Temp (offset by 40) -> 0,1,-40
-    let eqns = format!(":{}:EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40", padded);
-    debug!(packet = %eqns, "EQNS");
-    send_aprs_packet(agw, src, dst, &eqns)?;
-
-    // BITS - bit sense (all active high) + project title
-    let bits = format!(":{}:BITS.11111111,Renogy BMS", padded);
-    debug!(packet = %bits, "BITS");
-    send_aprs_packet(agw, src, dst, &bits)?;
-
-    info!("All definitions sent");
     Ok(())
 }

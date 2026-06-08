@@ -1,7 +1,9 @@
-use crate::BatteryInfo;
+use crate::query::BatteryInfo;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 #[derive(Clone)]
 pub struct SampleBuffer {

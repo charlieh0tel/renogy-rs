@@ -1,0 +1,5 @@
+# Configuration for renogy-aprs
+
+# APRS SSID, i.e. callsign-N (e.g. W1AW-12)
+# Required for renogy-aprs; will refuse to start with N0CALL.
+#SSID=Y0URS-12

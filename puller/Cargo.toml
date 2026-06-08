@@ -1,0 +1,42 @@
+[package]
+name = "renogy-archiver-puller"
+version = "0.1.0"
+edition = "2024"
+authors = ["Christopher Hoover <ch@murgatroid.com>"]
+license = "MIT"
+description = "Pull Renogy Parquet archives from the RPi4 over Tailscale"
+homepage = "https://github.com/charlieh0tel/renogy-rs"
+repository = "https://github.com/charlieh0tel/renogy-rs"
+
+[[bin]]
+name = "renogy-archiver-puller"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+chrono = "0.4"
+fs2 = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[package.metadata.deb]
+maintainer = "Christopher Hoover <ch@murgatroid.com>"
+copyright = "2024-2026, Christopher Hoover"
+section = "utils"
+priority = "optional"
+depends = "$auto, rsync, openssh-client"
+extended-description = """\
+Pulls daily Parquet archives staged by renogy-archiver on the RPi4 over rsync/SSH \
+(Tailscale), deleting them on the source after a successful transfer."""
+assets = [
+    ["target/release/renogy-archiver-puller", "usr/bin/", "755"],
+    ["systemd/renogy-archiver-puller.service", "usr/lib/systemd/system/", "644"],
+    ["systemd/renogy-archiver-puller.timer", "usr/lib/systemd/system/", "644"],
+    ["sysusers/renogy-archiver-puller.conf", "usr/lib/sysusers.d/renogy-archiver-puller.conf", "644"],
+    ["tmpfiles/renogy-archiver-puller.conf", "usr/lib/tmpfiles.d/renogy-archiver-puller.conf", "644"],
+    ["default/renogy-archiver-puller", "etc/default/", "644"],
+]
+conf-files = ["/etc/default/renogy-archiver-puller"]

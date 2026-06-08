@@ -1,12 +1,20 @@
-use crate::alarm::{
-    CellTemperatureAlarms, CellVoltageAlarms, CellVoltageErrors, ChargeDischargeStatus,
-    OtherAlarmInfo, Status1, Status2, Status3,
-};
-use crate::error::{RenogyError, Result};
-use byteorder::{BigEndian, ByteOrder};
+use crate::alarm::CellTemperatureAlarms;
+use crate::alarm::CellVoltageAlarms;
+use crate::alarm::CellVoltageErrors;
+use crate::alarm::ChargeDischargeStatus;
+use crate::alarm::OtherAlarmInfo;
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::alarm::Status3;
+use crate::error::RenogyError;
+use crate::error::Result;
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
-use uom::si::f32::{ElectricCurrent, ElectricPotential, ThermodynamicTemperature};
+use uom::si::f32::ElectricCurrent;
+use uom::si::f32::ElectricPotential;
+use uom::si::f32::ThermodynamicTemperature;
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 #[derive(Debug, PartialEq)]
@@ -274,7 +282,7 @@ impl Register {
                 ElectricPotential::new::<volt>(BigEndian::read_u16(data) as f32 * 0.1),
             ),
 
-            // Temperature (0.1°C resolution, unsigned)
+            // Temperature (0.1 C resolution, unsigned)
             Register::CellTemperature(_)
             | Register::BmsTemperature
             | Register::EnvironmentTemperature(_)
@@ -284,7 +292,7 @@ impl Register {
                 ))
             }
 
-            // Temperature limits (0.1°C resolution, signed)
+            // Temperature limits (0.1 C resolution, signed)
             Register::ChargeOverTemperatureLimit
             | Register::ChargeHighTemperatureLimit
             | Register::ChargeLowTemperatureLimit
@@ -400,36 +408,43 @@ impl Register {
         )
     }
 
-    pub fn serialize_value(&self, value: &Value) -> Result<Vec<u8>> {
+    /// Inverse of `parse_value`: encode a `Value` into this register's raw bytes.
+    ///
+    /// Covers every register the parser reads (writable config registers plus the
+    /// read-only monitoring ones), so it round-trips with `parse_value` and is the
+    /// single source of truth for serialization (an emulator can produce a coherent
+    /// response for any register).
+    pub fn encode_value(&self, value: &Value) -> Result<Vec<u8>> {
         let mut data = vec![0u8; (self.quantity() * 2) as usize];
 
         match (self, value) {
-            (
-                Register::ChargeVoltageLimit | Register::DischargeVoltageLimit,
-                Value::ElectricPotential(voltage),
-            ) => {
-                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
+            (Register::UniqueIdentificationCode, Value::Integer(v)) => {
+                BigEndian::write_u32(&mut data, *v);
             }
             (
-                Register::ChargeCurrentLimit | Register::DischargeCurrentLimit,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 100.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
-            (Register::CycleNumber, Value::Integer(value)) => {
-                BigEndian::write_u16(&mut data, *value as u16);
-            }
+                Register::CellCount
+                | Register::CellTemperatureCount
+                | Register::EnvironmentTemperatureCount
+                | Register::HeaterTemperatureCount
+                | Register::CycleNumber
+                | Register::ShutdownCommand
+                | Register::DeviceId
+                | Register::LockControl
+                | Register::TestReady
+                | Register::ChargePowerSetting
+                | Register::DischargePowerSetting
+                | Register::AcpBroadcast
+                | Register::AcpConfigure
+                | Register::AcpShake,
+                Value::Integer(v),
+            ) => BigEndian::write_u16(&mut data, *v as u16),
+
             (
-                Register::RemainingCapacity | Register::TotalCapacity,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 1000.0) as u32;
-                BigEndian::write_u32(&mut data, raw_value);
-            }
-            (
-                Register::CellOverVoltageLimit
+                Register::CellVoltage(_)
+                | Register::ModuleVoltage
+                | Register::ChargeVoltageLimit
+                | Register::DischargeVoltageLimit
+                | Register::CellOverVoltageLimit
                 | Register::CellHighVoltageLimit
                 | Register::CellLowVoltageLimit
                 | Register::CellUnderVoltageLimit
@@ -437,11 +452,17 @@ impl Register {
                 | Register::ModuleHighVoltageLimit
                 | Register::ModuleLowVoltageLimit
                 | Register::ModuleUnderVoltageLimit,
-                Value::ElectricPotential(voltage),
-            ) => {
-                let raw_value = (voltage.get::<volt>() * 10.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
-            }
+                Value::ElectricPotential(v),
+            ) => BigEndian::write_u16(&mut data, (v.get::<volt>() * 10.0) as u16),
+
+            (
+                Register::CellTemperature(_)
+                | Register::BmsTemperature
+                | Register::EnvironmentTemperature(_)
+                | Register::HeaterTemperature(_),
+                Value::ThermodynamicTemperature(t),
+            ) => BigEndian::write_u16(&mut data, (t.get::<degree_celsius>() * 10.0) as u16),
+
             (
                 Register::ChargeOverTemperatureLimit
                 | Register::ChargeHighTemperatureLimit
@@ -451,45 +472,355 @@ impl Register {
                 | Register::DischargeHighTemperatureLimit
                 | Register::DischargeLowTemperatureLimit
                 | Register::DischargeUnderTemperatureLimit,
-                Value::ThermodynamicTemperature(temp),
-            ) => {
-                let raw_value = (temp.get::<degree_celsius>() * 10.0) as i16;
-                BigEndian::write_i16(&mut data, raw_value);
+                Value::ThermodynamicTemperature(t),
+            ) => BigEndian::write_i16(&mut data, (t.get::<degree_celsius>() * 10.0) as i16),
+
+            (Register::Current | Register::DischargeCurrentLimit, Value::ElectricCurrent(c)) => {
+                BigEndian::write_i16(&mut data, (c.get::<ampere>() * 100.0) as i16)
             }
+
             (
-                Register::ChargeOver2CurrentLimit
+                Register::ChargeCurrentLimit
+                | Register::ChargeOver2CurrentLimit
                 | Register::ChargeOver1CurrentLimit
                 | Register::ChargeHighCurrentLimit
                 | Register::DischargeOver2CurrentLimit
                 | Register::DischargeOver1CurrentLimit
                 | Register::DischargeHighCurrentLimit,
-                Value::ElectricCurrent(current),
-            ) => {
-                let raw_value = (current.get::<ampere>() * 100.0) as u16;
-                BigEndian::write_u16(&mut data, raw_value);
+                Value::ElectricCurrent(c),
+            ) => BigEndian::write_u16(&mut data, (c.get::<ampere>() * 100.0) as u16),
+
+            (Register::RemainingCapacity | Register::TotalCapacity, Value::ElectricCurrent(c)) => {
+                BigEndian::write_u32(&mut data, (c.get::<ampere>() * 1000.0) as u32)
             }
+
             (
-                Register::ShutdownCommand
-                | Register::DeviceId
-                | Register::LockControl
-                | Register::TestReady
-                | Register::ChargePowerSetting
-                | Register::DischargePowerSetting
-                | Register::AcpBroadcast
-                | Register::AcpConfigure
-                | Register::AcpShake,
-                Value::Integer(value),
+                Register::SnNumber
+                | Register::ManufactureVersion
+                | Register::MainlineVersion
+                | Register::CommunicationProtocolVersion
+                | Register::BatteryName
+                | Register::SoftwareVersion
+                | Register::ManufacturerName,
+                Value::String(s),
             ) => {
-                BigEndian::write_u16(&mut data, *value as u16);
+                let bytes = s.as_bytes();
+                let n = bytes.len().min(data.len());
+                data[..n].copy_from_slice(&bytes[..n]);
             }
-            (Register::UniqueIdentificationCode, Value::Integer(value)) => {
-                BigEndian::write_u32(&mut data, *value);
+
+            (Register::CellVoltageAlarmInfo, Value::CellVoltageAlarms(a)) => {
+                BigEndian::write_u32(&mut data, a.to_bits());
             }
-            _ => {
-                return Err(RenogyError::UnsupportedOperation);
+            (Register::CellTemperatureAlarmInfo, Value::CellTemperatureAlarms(a)) => {
+                BigEndian::write_u32(&mut data, a.to_bits());
             }
+            (Register::OtherAlarmInfo, Value::OtherAlarmInfo(a)) => {
+                BigEndian::write_u32(&mut data, a.bits());
+            }
+            (Register::Status1, Value::Status1(s)) => BigEndian::write_u16(&mut data, s.bits()),
+            (Register::Status2, Value::Status2(s)) => BigEndian::write_u16(&mut data, s.bits()),
+            (Register::Status3, Value::Status3(s)) => BigEndian::write_u16(&mut data, s.bits()),
+            (Register::ChargeDischargeStatus, Value::ChargeDischargeStatus(s)) => {
+                BigEndian::write_u16(&mut data, s.bits())
+            }
+
+            _ => return Err(RenogyError::UnsupportedOperation),
         }
 
         Ok(data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Register;
+    use super::Value;
+    use crate::alarm::CellTemperatureAlarm;
+    use crate::alarm::CellTemperatureAlarms;
+    use crate::alarm::CellVoltageAlarm;
+    use crate::alarm::CellVoltageAlarms;
+    use crate::alarm::Status1;
+    use crate::alarm::Status2;
+    use uom::si::electric_current::ampere;
+    use uom::si::electric_potential::volt;
+    use uom::si::f32::ElectricCurrent;
+    use uom::si::f32::ElectricPotential;
+    use uom::si::f32::ThermodynamicTemperature;
+    use uom::si::thermodynamic_temperature::degree_celsius;
+
+    const TOLERANCE: f32 = 1e-3;
+
+    #[test]
+    fn parse_cell_voltage() {
+        let value = Register::CellVoltage(1).parse_value(&33u16.to_be_bytes());
+        assert_eq!(
+            value,
+            Value::ElectricPotential(ElectricPotential::new::<volt>(3.3))
+        );
+    }
+
+    #[test]
+    fn parse_integer() {
+        let value = Register::CellCount.parse_value(&16u16.to_be_bytes());
+        assert_eq!(value, Value::Integer(16));
+    }
+
+    #[test]
+    fn parse_multiword_current() {
+        let value = Register::RemainingCapacity.parse_value(&50000u32.to_be_bytes());
+        let Value::ElectricCurrent(current) = value else {
+            panic!("wrong type: {value:?}");
+        };
+        assert!((current.get::<ampere>() - 50.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn parse_string() {
+        let value = Register::SnNumber.parse_value(b"12345678");
+        assert_eq!(value, Value::String("12345678".to_string()));
+    }
+
+    #[test]
+    fn parse_cell_voltage_alarms() {
+        let data = 0b0000_0000_0000_0001_0000_0000_0000_0001u32.to_be_bytes();
+        let value = Register::CellVoltageAlarmInfo.parse_value(&data);
+        let expected = CellVoltageAlarms {
+            alarms: [
+                CellVoltageAlarm::OverVoltage,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+                CellVoltageAlarm::Normal,
+            ],
+        };
+        assert_eq!(value, Value::CellVoltageAlarms(expected));
+    }
+
+    #[test]
+    fn parse_status1() {
+        let value = Register::Status1.parse_value(&0b1000_0000_0000_0101u16.to_be_bytes());
+        let expected =
+            Status1::MODULE_UNDER_VOLTAGE | Status1::DISCHARGE_MOSFET | Status1::SHORT_CIRCUIT;
+        assert_eq!(value, Value::Status1(expected));
+    }
+
+    #[test]
+    fn encode_writable_voltage_limit_roundtrips() {
+        let register = Register::CellOverVoltageLimit;
+        let bytes = register
+            .encode_value(&Value::ElectricPotential(ElectricPotential::new::<volt>(
+                4.2,
+            )))
+            .unwrap();
+        let Value::ElectricPotential(parsed) = register.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<volt>() - 4.2).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_unsigned_current_limit_roundtrips() {
+        let register = Register::ChargeOver1CurrentLimit;
+        let bytes = register
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                100.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(parsed) = register.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<ampere>() - 100.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn writability() {
+        assert!(Register::CellHighVoltageLimit.is_writable());
+        assert!(!Register::CellVoltage(1).is_writable());
+    }
+
+    #[test]
+    fn word_quantities() {
+        assert_eq!(Register::CellVoltage(1).quantity(), 1);
+        assert_eq!(Register::RemainingCapacity.quantity(), 2);
+    }
+
+    #[test]
+    fn multi_sensor_addresses_distinct() {
+        assert_ne!(
+            Register::EnvironmentTemperature(1).address(),
+            Register::EnvironmentTemperature(2).address()
+        );
+        assert_ne!(
+            Register::EnvironmentTemperature(1).address(),
+            Register::HeaterTemperature(1).address()
+        );
+    }
+
+    #[test]
+    fn acp_registers_writable_and_distinct() {
+        assert!(Register::AcpBroadcast.is_writable());
+        assert!(Register::AcpConfigure.is_writable());
+        assert!(Register::AcpShake.is_writable());
+        assert_ne!(
+            Register::AcpBroadcast.address(),
+            Register::AcpConfigure.address()
+        );
+        assert_ne!(
+            Register::AcpConfigure.address(),
+            Register::AcpShake.address()
+        );
+    }
+
+    #[test]
+    fn encode_value_roundtrips_integer() {
+        let reg = Register::CellCount;
+        let bytes = reg.encode_value(&Value::Integer(16)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Integer(16));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_status1() {
+        let reg = Register::Status1;
+        let status = Status1::DISCHARGE_MOSFET | Status1::SHORT_CIRCUIT;
+        let bytes = reg.encode_value(&Value::Status1(status)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Status1(status));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_voltage() {
+        let reg = Register::CellVoltage(1);
+        let bytes = reg
+            .encode_value(&Value::ElectricPotential(ElectricPotential::new::<volt>(
+                3.3,
+            )))
+            .unwrap();
+        let Value::ElectricPotential(parsed) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((parsed.get::<volt>() - 3.3).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_cell_alarms() {
+        let reg = Register::CellVoltageAlarmInfo;
+        let mut alarms = [CellVoltageAlarm::Normal; 16];
+        alarms[0] = CellVoltageAlarm::OverVoltage;
+        alarms[5] = CellVoltageAlarm::UnderVoltage;
+        let original = CellVoltageAlarms { alarms };
+        let bytes = reg
+            .encode_value(&Value::CellVoltageAlarms(original))
+            .unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::CellVoltageAlarms(original));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_signed_temperature() {
+        let reg = Register::ChargeOverTemperatureLimit;
+        let bytes = reg
+            .encode_value(&Value::ThermodynamicTemperature(
+                ThermodynamicTemperature::new::<degree_celsius>(-12.5),
+            ))
+            .unwrap();
+        let Value::ThermodynamicTemperature(t) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((t.get::<degree_celsius>() + 12.5).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_unsigned_temperature() {
+        let reg = Register::CellTemperature(1);
+        let bytes = reg
+            .encode_value(&Value::ThermodynamicTemperature(
+                ThermodynamicTemperature::new::<degree_celsius>(25.0),
+            ))
+            .unwrap();
+        let Value::ThermodynamicTemperature(t) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((t.get::<degree_celsius>() - 25.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_signed_current() {
+        let reg = Register::Current;
+        let bytes = reg
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                -5.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(c) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((c.get::<ampere>() + 5.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_capacity() {
+        let reg = Register::RemainingCapacity;
+        let bytes = reg
+            .encode_value(&Value::ElectricCurrent(ElectricCurrent::new::<ampere>(
+                50.0,
+            )))
+            .unwrap();
+        let Value::ElectricCurrent(c) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert!((c.get::<ampere>() - 50.0).abs() < TOLERANCE);
+    }
+
+    #[test]
+    fn encode_value_roundtrips_string() {
+        let reg = Register::SnNumber;
+        let bytes = reg
+            .encode_value(&Value::String("ABCD".to_string()))
+            .unwrap();
+        let Value::String(s) = reg.parse_value(&bytes) else {
+            panic!("wrong type");
+        };
+        assert_eq!(s.trim_matches('\0'), "ABCD");
+    }
+
+    #[test]
+    fn encode_value_roundtrips_status2() {
+        let reg = Register::Status2;
+        let status = Status2::HEATER_ON | Status2::FULLY_CHARGED;
+        let bytes = reg.encode_value(&Value::Status2(status)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Status2(status));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_unique_id() {
+        let reg = Register::UniqueIdentificationCode;
+        let bytes = reg.encode_value(&Value::Integer(0xDEAD_BEEF)).unwrap();
+        assert_eq!(reg.parse_value(&bytes), Value::Integer(0xDEAD_BEEF));
+    }
+
+    #[test]
+    fn encode_value_roundtrips_cell_temperature_alarms() {
+        let reg = Register::CellTemperatureAlarmInfo;
+        let mut alarms = [CellTemperatureAlarm::Normal; 16];
+        alarms[0] = CellTemperatureAlarm::OverTemperature;
+        alarms[2] = CellTemperatureAlarm::UnderTemperature;
+        let original = CellTemperatureAlarms { alarms };
+        let bytes = reg
+            .encode_value(&Value::CellTemperatureAlarms(original))
+            .unwrap();
+        assert_eq!(
+            reg.parse_value(&bytes),
+            Value::CellTemperatureAlarms(original)
+        );
     }
 }

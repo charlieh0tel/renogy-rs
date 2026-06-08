@@ -1,7 +1,10 @@
-use crate::error::{ModbusExceptionCode, RenogyError, Result};
-use crc::{CRC_16_MODBUS, Crc};
+use crate::error::ModbusExceptionCode;
+use crate::error::RenogyError;
+use crate::error::Result;
+use crc::CRC_16_MODBUS;
+use crc::Crc;
 
-pub const MODBUS_CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_MODBUS);
+const MODBUS_CRC: Crc<u16> = Crc::<u16>::new(&CRC_16_MODBUS);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum FunctionCode {
@@ -106,5 +109,34 @@ impl Pdu {
             function_code,
             payload,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FunctionCode;
+    use super::Pdu;
+    use crate::error::RenogyError;
+
+    #[test]
+    fn serialize_deserialize_roundtrip() {
+        let pdu = Pdu::new(
+            1,
+            FunctionCode::ReadHoldingRegisters,
+            vec![0x13, 0x88, 0x00, 0x01],
+        );
+        let frame = pdu.serialize();
+        assert_eq!(Pdu::deserialize(&frame).unwrap(), pdu);
+    }
+
+    #[test]
+    fn deserialize_rejects_crc_mismatch() {
+        let pdu = Pdu::new(1, FunctionCode::ReadHoldingRegisters, vec![0x00, 0x01]);
+        let mut frame = pdu.serialize();
+        frame[2] ^= 0x01;
+        assert!(matches!(
+            Pdu::deserialize(&frame),
+            Err(RenogyError::CrcMismatch)
+        ));
     }
 }

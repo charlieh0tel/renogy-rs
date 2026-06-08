@@ -3,6 +3,8 @@ pub mod any_transport;
 pub mod bt2;
 pub mod collector;
 pub mod device;
+#[cfg(any(test, feature = "emulator"))]
+pub mod emulator;
 pub mod error;
 pub mod pdu;
 pub mod query;
@@ -11,17 +13,5 @@ pub mod serial;
 pub mod system_summary;
 pub mod transport;
 pub mod tui;
+pub mod util;
 pub mod vm_client;
-
-pub use alarm::*;
-pub use any_transport::{AnyTransport, BT2_SCAN_RANGE, SERIAL_SCAN_RANGE};
-pub use bt2::{BT2_NAME_PREFIX, Bt2Transport, discover_bt2_devices};
-pub use device::{AcpConfig, DeviceCommand, DeviceInfo, PowerSettings};
-pub use error::{ModbusExceptionCode, RenogyError, Result};
-pub use pdu::{FunctionCode, Pdu};
-pub use query::{BatteryInfo, query_battery};
-pub use registers::{Register, Value};
-pub use serial::SerialTransport;
-pub use system_summary::{SystemAlarms, SystemSummary};
-pub use transport::{Transport, TransportType};
-pub use vm_client::{VmClient, VmError};

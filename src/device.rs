@@ -1,5 +1,6 @@
 use crate::error::Result;
-use crate::pdu::{FunctionCode, Pdu};
+use crate::pdu::FunctionCode;
+use crate::pdu::Pdu;
 use crate::registers::Register;
 
 const SHUTDOWN_VALUE: u16 = 1;
@@ -150,5 +151,62 @@ impl AcpConfig {
     #[must_use]
     pub const fn is_valid_acp_value(value: u8) -> bool {
         value >= Self::MIN_ACP_VALUE && value <= Self::MAX_ACP_VALUE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DeviceCommand;
+    use super::PowerSettings;
+    use crate::pdu::FunctionCode;
+
+    #[test]
+    fn requires_unlock_only_for_destructive() {
+        assert!(DeviceCommand::RestoreFactoryDefault.requires_unlock());
+        assert!(DeviceCommand::ClearHistory.requires_unlock());
+        assert!(!DeviceCommand::Lock.requires_unlock());
+    }
+
+    #[test]
+    fn factory_reset_pdu() {
+        let pdu = DeviceCommand::RestoreFactoryDefault.create_pdu(1);
+        assert_eq!(pdu.function_code, FunctionCode::RestoreFactoryDefault);
+        assert_eq!(pdu.payload, vec![0x00, 0x00, 0x00, 0x01]);
+    }
+
+    #[test]
+    fn lock_pdu_is_write_with_lock_value() {
+        let pdu = DeviceCommand::Lock.create_pdu(1);
+        assert_eq!(pdu.function_code, FunctionCode::WriteSingleRegister);
+        let value = &pdu.payload[pdu.payload.len() - 2..];
+        assert_eq!(value, [0x5A, 0x5A]);
+    }
+
+    #[test]
+    fn power_settings_valid() {
+        let settings = PowerSettings::new(80, 90).unwrap();
+        assert_eq!(settings.charge_power_percent, 80);
+        assert_eq!(settings.discharge_power_percent, 90);
+    }
+
+    #[test]
+    fn power_settings_rejects_over_100() {
+        assert!(PowerSettings::new(101, 50).is_err());
+    }
+
+    #[test]
+    fn unlock_pdu_is_write_with_unlock_value() {
+        let pdu = DeviceCommand::Unlock.create_pdu(1);
+        assert_eq!(pdu.function_code, FunctionCode::WriteSingleRegister);
+        let value = &pdu.payload[pdu.payload.len() - 2..];
+        assert_eq!(value, [0xA5, 0xA5]);
+    }
+
+    #[test]
+    fn test_begin_pdu_is_write() {
+        let pdu = DeviceCommand::TestBegin.create_pdu(1);
+        assert_eq!(pdu.function_code, FunctionCode::WriteSingleRegister);
+        let value = &pdu.payload[pdu.payload.len() - 2..];
+        assert_eq!(value, [0x5A, 0x5A]);
     }
 }

@@ -1,0 +1,37 @@
+[package]
+name = "renogy-collector"
+version = "0.2.3"
+edition = "2024"
+authors = ["Christopher Hoover <ch@murgatroid.com>"]
+license = "MIT"
+description = "Collect Renogy BMS metrics to VictoriaMetrics, with a terminal UI"
+homepage = "https://github.com/charlieh0tel/renogy-rs"
+repository = "https://github.com/charlieh0tel/renogy-rs"
+
+[dependencies]
+renogy-rs = { version = "0.2.3", path = ".." }
+clap = { version = "4.5.53", features = ["derive"] }
+prometheus-client = "0.23"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ratatui = "0.29"
+crossterm = "0.28"
+
+[package.metadata.deb]
+name = "renogy-collector"
+maintainer = "Christopher Hoover <ch@murgatroid.com>"
+copyright = "2024-2026, Christopher Hoover"
+section = "hamradio"
+priority = "optional"
+depends = "$auto"
+extended-description = "Collects Renogy BMS metrics over Bluetooth/serial and exports to VictoriaMetrics, plus a terminal UI."
+assets = [
+    ["target/release/renogy-bms-collector", "usr/bin/", "755"],
+    ["target/release/renogy-tui", "usr/bin/", "755"],
+    ["systemd/renogy-bms-collector.service", "usr/lib/systemd/system/", "644"],
+    ["sysusers/renogy-collector.conf", "usr/lib/sysusers.d/renogy-collector.conf", "644"],
+    ["default/renogy-collector", "etc/default/", "644"],
+]
+conf-files = ["/etc/default/renogy-collector"]

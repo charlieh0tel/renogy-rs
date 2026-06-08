@@ -1,15 +1,18 @@
 [Unit]
 Description=Renogy BMS Collector
 After=bluetooth.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-EnvironmentFile=-/etc/default/renogy-rs
+User=renogy-collector
+Group=renogy-collector
+SupplementaryGroups=dialout
+EnvironmentFile=-/etc/default/renogy-collector
 ExecStart=/usr/bin/renogy-bms-collector ${COLLECTOR_ARGS}
 Restart=on-failure
 RestartSec=30
-StartLimitBurst=5
-StartLimitIntervalSec=300
 Environment=RUST_LOG=info
 Environment=COLLECTOR_ARGS=bt2
 ProtectHome=yes

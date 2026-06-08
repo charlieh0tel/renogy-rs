@@ -1,0 +1,23 @@
+[Unit]
+Description=Pull Renogy Parquet archives from RPi4
+After=network-online.target tailscaled.service
+Wants=network-online.target
+StartLimitIntervalSec=1800
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=renogy-archiver-puller
+Group=renogy-archiver-puller
+EnvironmentFile=/etc/default/renogy-archiver-puller
+ExecStart=/usr/bin/renogy-archiver-puller pull
+Restart=on-failure
+RestartSec=300
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/renogy-archive /var/lib/renogy-archiver-puller
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

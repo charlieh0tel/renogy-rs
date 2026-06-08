@@ -1,7 +1,8 @@
 use crate::query::BatteryInfo;
 use crate::system_summary::SystemSummary;
 use ratatui::widgets::ListState;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use std::time::Instant;
 
 use super::history::History;
@@ -13,7 +14,7 @@ pub enum Tab {
     Graphs,
 }
 
-pub const ZOOM_LEVELS: &[(u64, &str)] = &[
+const ZOOM_LEVELS: &[(u64, &str)] = &[
     (60, "1 min"),
     (300, "5 min"),
     (900, "15 min"),

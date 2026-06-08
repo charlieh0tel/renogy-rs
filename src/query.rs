@@ -1,10 +1,15 @@
-use crate::alarm::{
-    CellTemperatureAlarms, CellVoltageAlarms, ChargeDischargeStatus, OtherAlarmInfo, Status1,
-    Status2, Status3,
-};
-use crate::registers::{Register, Value};
+use crate::alarm::CellTemperatureAlarms;
+use crate::alarm::CellVoltageAlarms;
+use crate::alarm::ChargeDischargeStatus;
+use crate::alarm::OtherAlarmInfo;
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::alarm::Status3;
+use crate::registers::Register;
+use crate::registers::Value;
 use crate::transport::Transport;
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
+use chrono::Utc;
 use uom::si::electric_current::ampere;
 use uom::si::electric_potential::volt;
 use uom::si::thermodynamic_temperature::degree_celsius;

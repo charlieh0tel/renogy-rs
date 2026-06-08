@@ -1,5 +1,6 @@
-use crate::BatteryInfo;
-use crate::collector::{SampleBuffer, metrics::batch_to_influx};
+use crate::collector::buffer::SampleBuffer;
+use crate::collector::metrics::batch_to_influx;
+use crate::query::BatteryInfo;
 use reqwest::Client;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -16,7 +17,11 @@ impl VmWriter {
         let url = format!("{}/write", vm_url.trim_end_matches('/'));
 
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(Duration::from_secs(30))
+                .connect_timeout(Duration::from_secs(10))
+                .build()
+                .expect("build reqwest client"),
             url,
             buffer,
             cancel,

@@ -2,22 +2,69 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Workflow
+# Critical Rules
 
-1. **Code Formatting**: Always run `cargo +nightly fmt` after making code changes
-2. **Code Linting**: Always run `cargo clippy` after making code changes. If clippy warnings are simple, fix them. If complicated, ask the user for guidance.
-3. **CRITICAL: Format and Lint Before Any Commit**: Always run both `cargo +nightly fmt` and `cargo clippy` before committing changes. This is mandatory for all code changes.
-4. **Comments**: Do not add trivial, obvious, or redundant comments. Only include comments that explain complex logic, business rules, or non-obvious behavior. Avoid comments like `// Create connection`, `// Set to true`, or `// 30 seconds` that simply restate what the code does.
-5. **Commit Messages**: Do not add Gemini attribution or co-authorship to commit messages. Keep commit messages clean and professional.
-6. **Code Consistency**: Be consistent with existing code patterns, naming conventions, and architectural decisions in the codebase.
-7. **Git Add**: Never use `git add -A`. Always add files explicitly by name and only those files that you edited.
-8. **File Reading**: Always read files completely before making changes. Use chunking (offset/limit parameters) for large files if necessary, but ensure the entire file is read.
+- Be extremely concise; sacrifice grammar for concision.
+- Use built-in tools for file operations: globs for file search, grep
+  for content search, read for viewing files.  Do not request
+  grep/sed/fd/find/ls/cat or similar CLI tools when you already have
+  these built-in.
+- Read files completely before modifying them; use offset/limit to
+  chunk large files.  Understand existing patterns and context before
+  proposing changes.
+- Always list unresolved questions at end.
+- Keep documention (.md files) up to date with code changes.
 
-## Rust Configuration
 
-- **Rust version**: 1.89.0 (specified in `rust-toolchain.toml`)
-- **Edition**: 2024
-- **Key features**: async/await with tokio, egui for GUI
-- never add co-authored lines
-- always ok to run cargo fmt
-- always ok to run cargo clippy
+# Revision Control
+
+- Do not add Claude attribution to commit messages.
+- Do not commit without permission.
+- PRs should generally be comprised of one functional change; suggest
+  making a commit before moving onto something unrelated.
+- Commit and PR bodies should be concise and summarizing, not an
+  enumeration of every change.  Default to a subject-only commit; add a
+  short body only when needed.  When there are only one or two changes,
+  the body may be specific about them.
+- All tests must pass before committing.
+- Never use -a to commit; always enumerate the files.
+
+
+# Programming Rules
+
+- Prefer ASCII in all code and user-facing strings (logs, CLI output,
+  error messages).  Ask before using Unicode.
+- Prefer consistency above most other concerns.
+- Do not add trivial, obvious or redundant comments.
+- Be DRY.
+- Avoid magic constants.
+- Only comment unintiutive or hard to understand code.
+- Always comment data structures.
+- Don't abbreviate by dropping letters from the middle of a word.
+  Truncation (cutting from the end) is OK.   Domain acronyms are OK.
+
+
+## Rust Rules
+
+- Use the latest stable Rust edition.
+- Always run `cargo +nightly fmt` after changes and before commits.
+- Always run `cargo clippy` after changes and before commits; fix
+  simple warnings, ask for guidance on complicated ones.
+- Run tests with `cargo test`.
+- Always use the narrowest visibility possible.
+- Avoid public by default.
+- Prefer `#[expect(lint, reason = "...")]` over `#[allow(lint)]`. If
+  you must use `allow`, add `// [TODO] @<developer>: fix allow lint`.
+- Use item-level imports, not nested crate/module imports.
+- Prefer `use` statements at module top over inline imports.
+- Avoid mutable variables when possible.  Prefer new bindings or shadows.
+- Never re-export.  Use individual use statements where needed instead
+  of `pub use` or `pub(crate) use`.
+- Never employ a wildcard `use` statement on an enum when trying to
+  shorten match arms.
+- Use the newtype idiom as appropriate.
+- Do not use `anyhow` in library crates at all; use typed errors via
+  `thiserror` instead.  `anyhow` is for binaries only.
+- Do not use `unsafe` without asking.
+- When adding dependencies, use `cargo add` to ensure we install the
+  latest version of dependencies.

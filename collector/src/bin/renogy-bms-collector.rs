@@ -1,14 +1,17 @@
-#[path = "../bin_common.rs"]
-mod common;
-
-use clap::{Parser, Subcommand};
-use common::parse_address;
+use clap::Parser;
+use clap::Subcommand;
 use prometheus_client::registry::Registry;
-use renogy_rs::{
-    AnyTransport, BT2_SCAN_RANGE, Bt2Transport, SERIAL_SCAN_RANGE, SerialTransport,
-    collector::{MetricsServer, PrometheusMetrics, SampleBuffer, VmWriter},
-    discover_bt2_devices,
-};
+use renogy_rs::any_transport::AnyTransport;
+use renogy_rs::any_transport::BT2_SCAN_RANGE;
+use renogy_rs::any_transport::SERIAL_SCAN_RANGE;
+use renogy_rs::bt2::Bt2Transport;
+use renogy_rs::bt2::discover_bt2_devices;
+use renogy_rs::collector::buffer::SampleBuffer;
+use renogy_rs::collector::metrics::PrometheusMetrics;
+use renogy_rs::collector::server::MetricsServer;
+use renogy_rs::collector::writer::VmWriter;
+use renogy_rs::serial::SerialTransport;
+use renogy_rs::util::parse_address;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;

@@ -1,6 +1,10 @@
+use crate::bt2::Bt2Transport;
 use crate::error::Result;
-use crate::transport::{Transport, TransportType};
-use crate::{BatteryInfo, Bt2Transport, SerialTransport, query_battery};
+use crate::query::BatteryInfo;
+use crate::query::query_battery;
+use crate::serial::SerialTransport;
+use crate::transport::Transport;
+use crate::transport::TransportType;
 use async_trait::async_trait;
 use std::ops::RangeInclusive;
 

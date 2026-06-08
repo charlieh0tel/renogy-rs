@@ -1,16 +1,35 @@
-use crate::alarm::{Status1, Status2};
-use crate::tui::app::{App, Tab};
-use chrono::{DateTime, Local, TimeZone};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols::Marker,
-    text::{Line, Span},
-    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, Paragraph, Tabs},
-};
-use ratatui_macros::{line, span};
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::alarm::Status1;
+use crate::alarm::Status2;
+use crate::tui::app::App;
+use crate::tui::app::Tab;
+use chrono::DateTime;
+use chrono::Local;
+use chrono::TimeZone;
+use ratatui::Frame;
+use ratatui::layout::Constraint;
+use ratatui::layout::Direction;
+use ratatui::layout::Layout;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::symbols::Marker;
+use ratatui::text::Line;
+use ratatui::text::Span;
+use ratatui::widgets::Axis;
+use ratatui::widgets::Block;
+use ratatui::widgets::Borders;
+use ratatui::widgets::Chart;
+use ratatui::widgets::Dataset;
+use ratatui::widgets::GraphType;
+use ratatui::widgets::List;
+use ratatui::widgets::ListItem;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Tabs;
+use ratatui_macros::line;
+use ratatui_macros::span;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 type ChartDataPoints = Vec<(f64, f64)>;
 
@@ -748,4 +767,55 @@ fn format_y_labels(bounds: [f64; 2], width: usize) -> Vec<Span<'static>> {
         Span::raw(format_y_label(bounds[0], width)),
         Span::raw(format_y_label(bounds[1], width)),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::calculate_y_bounds;
+    use super::downsample_minmax;
+    use super::soc_bar;
+
+    #[test]
+    fn soc_bar_fills_proportionally() {
+        let bar = soc_bar(50.0, 40);
+        assert_eq!(bar.chars().count(), 40);
+        assert_eq!(bar.chars().filter(|&c| c == '█').count(), 20);
+    }
+
+    #[test]
+    fn soc_bar_clamps_out_of_range() {
+        assert_eq!(soc_bar(150.0, 10).chars().filter(|&c| c == '█').count(), 10);
+        assert_eq!(soc_bar(-5.0, 10).chars().filter(|&c| c == '█').count(), 0);
+    }
+
+    #[test]
+    fn downsample_keeps_small_series() {
+        let data = vec![(0.0, 1.0), (1.0, 2.0), (2.0, 3.0)];
+        assert_eq!(downsample_minmax(&data, 10), data);
+    }
+
+    #[test]
+    fn downsample_bounds_large_series() {
+        let data: Vec<(f64, f64)> = (0..1000).map(|i| (i as f64, i as f64)).collect();
+        assert!(downsample_minmax(&data, 50).len() <= 50);
+    }
+
+    #[test]
+    fn y_bounds_default_for_empty() {
+        assert_eq!(calculate_y_bounds(&[], None), [0.0, 1.0]);
+    }
+
+    #[test]
+    fn y_bounds_honor_fixed() {
+        assert_eq!(
+            calculate_y_bounds(&[(0.0, 5.0)], Some((0.0, 100.0))),
+            [0.0, 100.0]
+        );
+    }
+
+    #[test]
+    fn y_bounds_pad_data_range() {
+        let bounds = calculate_y_bounds(&[(0.0, 1.0), (1.0, 3.0)], None);
+        assert!(bounds[0] < 1.0 && bounds[1] > 3.0);
+    }
 }

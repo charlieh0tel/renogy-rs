@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-pub use crate::vm_client::{VmClient, VmError};
+pub use crate::vm_client::VmClient;
+pub use crate::vm_client::VmError;
 
 use super::history::DataPoint;
 
