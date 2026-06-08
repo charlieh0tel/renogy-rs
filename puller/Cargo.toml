@@ -1,26 +1,26 @@
 [package]
 name = "renogy-archiver-puller"
-version = "0.1.0"
-edition = "2024"
-authors = ["Christopher Hoover <ch@murgatroid.com>"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Pull Renogy Parquet archives from the RPi4 over Tailscale"
-homepage = "https://github.com/charlieh0tel/renogy-rs"
-repository = "https://github.com/charlieh0tel/renogy-rs"
+homepage.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "renogy-archiver-puller"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive", "env"] }
-chrono = "0.4"
-fs2 = "0.4"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { workspace = true, features = ["env"] }
+chrono.workspace = true
+fs2.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [dev-dependencies]
-tempfile = "3"
+tempfile.workspace = true
 
 [package.metadata.deb]
 maintainer = "Christopher Hoover <ch@murgatroid.com>"

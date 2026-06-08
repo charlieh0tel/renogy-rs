@@ -1,25 +1,25 @@
 [package]
 name = "renogy-archiver"
-version = "0.1.0"
-edition = "2024"
-authors = ["Christopher Hoover <ch@murgatroid.com>"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Export Renogy BMS metrics from VictoriaMetrics to Parquet"
-homepage = "https://github.com/charlieh0tel/renogy-rs"
-repository = "https://github.com/charlieh0tel/renogy-rs"
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-arrow = { version = "58", default-features = false }
-parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
-chrono = { version = "0.4", features = ["serde"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-clap = { version = "4.5.53", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-thiserror = "2"
+arrow.workspace = true
+parquet.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+chrono = { workspace = true, features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+thiserror.workspace = true
 
 [package.metadata.deb]
 name = "renogy-archiver"
@@ -38,6 +38,6 @@ assets = [
 ]
 
 [dev-dependencies]
-renogy-rs = { path = "..", features = ["emulator"] }
-axum = "0.8"
-tempfile = "3"
+renogy-rs = { workspace = true, features = ["emulator"] }
+axum.workspace = true
+tempfile.workspace = true
