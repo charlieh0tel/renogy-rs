@@ -2216,7 +2216,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-archiver"
-version = "0.1.0"
+version = "0.2.3"
 dependencies = [
  "arrow",
  "axum",
@@ -2236,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-archiver-puller"
-version = "0.1.0"
+version = "0.2.3"
 dependencies = [
  "chrono",
  "clap",

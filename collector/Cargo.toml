@@ -1,27 +1,26 @@
 [package]
 name = "renogy-collector"
-version = "0.2.3"
-edition = "2024"
-authors = ["Christopher Hoover <ch@murgatroid.com>"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Collect Renogy BMS metrics to VictoriaMetrics, with a terminal UI"
-homepage = "https://github.com/charlieh0tel/renogy-rs"
-repository = "https://github.com/charlieh0tel/renogy-rs"
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-renogy-rs = { version = "0.2.3", path = ".." }
-clap = { version = "4.5.53", features = ["derive"] }
-prometheus-client = "0.23"
-tokio = { version = "1", features = ["full"] }
-tokio-util = "0.7"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-ratatui = "0.29"
-crossterm = "0.28"
+renogy-rs.workspace = true
+clap.workspace = true
+prometheus-client.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
 
 [package.metadata.deb]
 name = "renogy-collector"
-maintainer = "Christopher Hoover <ch@murgatroid.com>"
 copyright = "2024-2026, Christopher Hoover"
 section = "hamradio"
 priority = "optional"

@@ -1,49 +1,91 @@
 [package]
 name = "renogy-rs"
-version = "0.2.3"
-edition = "2024"
-authors = ["Christopher Hoover <ch@murgatroid.com>"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial"
-homepage = "https://github.com/charlieh0tel/renogy-rs"
-repository = "https://github.com/charlieh0tel/renogy-rs"
+homepage.workspace = true
+repository.workspace = true
 
 [workspace]
 members = ["collector", "aprs", "archiver", "puller"]
 resolver = "2"
 
+[workspace.package]
+version = "0.2.3"
+edition = "2024"
+authors = ["Christopher Hoover <ch@murgatroid.com>"]
+license = "MIT"
+homepage = "https://github.com/charlieh0tel/renogy-rs"
+repository = "https://github.com/charlieh0tel/renogy-rs"
+
 # renogy-rs is the shared library crate (plus dev query/example bins). The shipped
 # tools live in the member crates, each producing its own .deb.
+
+[workspace.dependencies]
+renogy-rs = { path = "." }
+agw = "0.1.9"
+arrow = { version = "58", default-features = false }
+async-trait = "0.1.81"
+axum = "0.8"
+bitflags = "2.4.1"
+bluebus = "0.1.10"
+byteorder = "1.4.3"
+chrono = "0.4"
+clap = { version = "4.5.53", features = ["derive"] }
+crc = "3.3.0"
+crossterm = "0.28"
+fs2 = "0.4"
+futures = "0.3"
+influxdb-line-protocol = "2"
+parquet = { version = "58", default-features = false, features = ["arrow", "snap"] }
+prometheus-client = "0.23"
+prometheus-http-query = { version = "0.8", default-features = false, features = ["rustls-tls"] }
+ratatui = "0.29"
+ratatui-macros = "0.6"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tokio-modbus = "0.8.1"
+tokio-serial = "5.4.5"
+tokio-util = "0.7"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uom = { version = "0.35.0", features = ["si", "f32", "std"] }
+zbus = "5.12.0"
 
 [features]
 # Compiles the in-memory battery emulator into the library (always on under `cfg(test)`).
 emulator = []
 
 [dependencies]
-futures = "0.3"
-crc = "3.3.0"
-byteorder = "1.4.3"
-uom = { version = "0.35.0", features = ["si", "f32", "std"] }
-bitflags = "2.4.1"
-tokio = { version = "1", features = ["full"] }
-tokio-modbus = "0.8.1"
-bluebus = "0.1.10"
-zbus = "5.12.0"
-tokio-serial = "5.4.5"
-clap = { version = "4.5.53", features = ["derive"] }
-ratatui = "0.29"
-ratatui-macros = "0.6"
-crossterm = "0.28"
-serde = { version = "1", features = ["derive"] }
-chrono = "0.4"
-axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
-tokio-util = "0.7"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-influxdb-line-protocol = "2"
-prometheus-client = "0.23"
-prometheus-http-query = { version = "0.8", default-features = false, features = ["rustls-tls"] }
-thiserror = "2"
-async-trait = "0.1.81"
-
+futures.workspace = true
+crc.workspace = true
+byteorder.workspace = true
+uom.workspace = true
+bitflags.workspace = true
+tokio.workspace = true
+tokio-modbus.workspace = true
+bluebus.workspace = true
+zbus.workspace = true
+tokio-serial.workspace = true
+clap.workspace = true
+ratatui.workspace = true
+ratatui-macros.workspace = true
+crossterm.workspace = true
+serde.workspace = true
+chrono.workspace = true
+axum.workspace = true
+reqwest.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+influxdb-line-protocol.workspace = true
+prometheus-client.workspace = true
+prometheus-http-query.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
