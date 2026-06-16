@@ -30,12 +30,17 @@ depends = "$auto, rsync, openssh-client"
 extended-description = """\
 Pulls daily Parquet archives staged by renogy-archiver on the RPi4 over rsync/SSH \
 (Tailscale), deleting them on the source after a successful transfer."""
+maintainer-scripts = "debian"
 assets = [
     ["target/release/renogy-archiver-puller", "usr/bin/", "755"],
-    ["systemd/renogy-archiver-puller.service", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-archiver-puller.timer", "usr/lib/systemd/system/", "644"],
     ["sysusers/renogy-archiver-puller.conf", "usr/lib/sysusers.d/renogy-archiver-puller.conf", "644"],
     ["tmpfiles/renogy-archiver-puller.conf", "usr/lib/tmpfiles.d/renogy-archiver-puller.conf", "644"],
     ["default/renogy-archiver-puller", "etc/default/", "644"],
 ]
 conf-files = ["/etc/default/renogy-archiver-puller"]
+
+[package.metadata.deb.systemd-units]
+unit-scripts = "systemd"
+unit-name = "renogy-archiver-puller"
+enable = true
+start = true

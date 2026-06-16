@@ -29,12 +29,17 @@ priority = "optional"
 depends = "$auto, rsync"
 recommends = "openssh-server"
 extended-description = "Exports Renogy BMS history from VictoriaMetrics to daily Parquet files for an archive host to pull."
+maintainer-scripts = "debian"
 assets = [
     ["target/release/renogy-archiver", "usr/bin/", "755"],
-    ["systemd/renogy-archiver-export.service", "usr/lib/systemd/system/", "644"],
-    ["systemd/renogy-archiver-export.timer", "usr/lib/systemd/system/", "644"],
     ["sysusers/renogy-archiver.conf", "usr/lib/sysusers.d/renogy-archiver.conf", "644"],
 ]
+
+[package.metadata.deb.systemd-units]
+unit-scripts = "systemd"
+unit-name = "renogy-archiver-export"
+enable = true
+start = true
 
 [dev-dependencies]
 renogy-rs = { workspace = true, features = ["emulator"] }
