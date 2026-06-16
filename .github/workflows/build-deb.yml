@@ -59,3 +59,15 @@ jobs:
         run: |
           cargo test -p renogy-archiver --test system -- --ignored
           cargo test -p renogy-archiver-puller --test pull -- --ignored
+
+  trigger-apt-repo:
+    needs: [build-deb-collector, build-deb-aprs, build-deb-archiver, build-deb-puller, tests]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Trigger APT repo rebuild
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.APT_REPO_TOKEN }}
+          repository: charlieh0tel/apt-repo
+          event-type: update-apt-repo
