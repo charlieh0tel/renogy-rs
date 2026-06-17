@@ -3,3 +3,11 @@
 # APRS SSID, i.e. callsign-N (e.g. W1AW-12)
 # Required for renogy-aprs; will refuse to start with N0CALL.
 #SSID=Y0URS-12
+
+# Output transport: agw (TNC, default), aprs-is (internet), or both.
+#APRS_TRANSPORT=agw
+
+# APRS-IS server (used when APRS_TRANSPORT is aprs-is or both).
+# The passcode is computed from the callsign automatically.
+#APRSIS_HOST=rotate.aprs2.net
+#APRSIS_PORT=14580

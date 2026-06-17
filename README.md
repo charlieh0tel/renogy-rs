@@ -5,7 +5,7 @@ Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial, with AP
 ## Binaries
 
 - **renogy-bms-collector** -- Collects BMS data over Bluetooth and exports metrics to VictoriaMetrics
-- **renogy-aprs** -- Beacons battery telemetry over APRS via Direwolf AGW interface
+- **renogy-aprs** -- Beacons battery telemetry over APRS, via a TNC (Direwolf AGW), APRS-IS, or both
 - **renogy-tui** -- Terminal UI for live battery monitoring
 - **serial-query** -- Query BMS over serial/Modbus
 - **bt2-query** -- Query BMS over Bluetooth
@@ -42,6 +42,11 @@ sudo editor /etc/default/renogy-rs
 
 - **SSID** -- APRS SSID, i.e. callsign-N (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogy-aprs` will reject at startup.
 - **COLLECTOR_ARGS** -- Arguments for `renogy-bms-collector`. Defaults to `bt2`. Examples: `bt2 --adapter hci1`, `serial --port /dev/ttyUSB0`.
+
+`renogy-aprs` also reads these optional environment variables (see `/etc/default/renogy-aprs`):
+
+- **APRS_TRANSPORT** -- `agw` (TNC, default), `aprs-is` (internet), or `both`.
+- **APRSIS_HOST** / **APRSIS_PORT** -- APRS-IS server (default `rotate.aprs2.net:14580`). The passcode is computed from the callsign automatically.
 
 ### Enabling the Services
 

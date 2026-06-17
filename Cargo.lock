@@ -2206,9 +2206,11 @@ name = "renogy-aprs"
 version = "0.3.1"
 dependencies = [
  "agw",
+ "async-trait",
  "chrono",
  "clap",
  "renogy-rs",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
