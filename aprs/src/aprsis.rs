@@ -69,7 +69,11 @@ struct Session {
 pub struct AprsIsClient {
     host: String,
     port: u16,
-    /// Source callsign-SSID used both for login and the TNC2 `from` field.
+    /// Licensed operator callsign-SSID used for the APRS-IS login; its passcode
+    /// must verify. May differ from `src` when a tactical call is in use.
+    login: String,
+    /// Source callsign placed in the TNC2 `from` field (the tactical call, or the
+    /// operator call when no tactical call is configured).
     src: String,
     /// APRS destination/TOCALL placed in the TNC2 `to` field.
     dst: String,
@@ -79,10 +83,18 @@ pub struct AprsIsClient {
 
 impl AprsIsClient {
     #[must_use]
-    pub fn new(host: String, port: u16, src: String, dst: String, passcode: u16) -> Self {
+    pub fn new(
+        host: String,
+        port: u16,
+        login: String,
+        src: String,
+        dst: String,
+        passcode: u16,
+    ) -> Self {
         Self {
             host,
             port,
+            login,
             src,
             dst,
             passcode,
@@ -136,7 +148,7 @@ impl AprsIsClient {
 
         let login = format!(
             "user {} pass {} vers {} {}\r\n",
-            self.src,
+            self.login,
             self.passcode,
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION"),
@@ -152,11 +164,11 @@ impl AprsIsClient {
         debug!(response = %response, "APRS-IS login response");
         if response.contains("unverified") {
             warn!(
-                src = %self.src,
+                login = %self.login,
                 "APRS-IS login unverified (telemetry will be dropped by the server); check that the callsign is valid"
             );
         } else if !response.contains("verified") {
-            warn!(src = %self.src, response = %response, "Unexpected APRS-IS login response; proceeding");
+            warn!(login = %self.login, response = %response, "Unexpected APRS-IS login response; proceeding");
         }
 
         Ok(Session { reader, writer })

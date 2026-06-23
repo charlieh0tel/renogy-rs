@@ -2,12 +2,23 @@
 
 use renogy_rs::system_summary::SystemSummary;
 
+/// Free-text project title shown on telemetry plots (the BITS field), suffixed
+/// with the project URL so listeners can find the source.
+const PROJECT_TITLE: &str = "Renogy BMS";
+
 /// Build the APRS telemetry data packet `T#seq,A1..A5,bits` for a summary.
 ///
 /// Analog channels are 0-255: SOC/capacity/voltage clamped, current offset by +128,
 /// temperature offset by +40 (matching the `EQNS` coefficients in `definition_packets`).
+///
+/// `operator`, when set, is appended as a trailing comment to identify the licensed
+/// operator behind a tactical source callsign. Strict telemetry parsers ignore it.
 #[must_use]
-pub fn format_telemetry_packet_seq(seq: u16, summary: &SystemSummary) -> String {
+pub fn format_telemetry_packet_seq(
+    seq: u16,
+    summary: &SystemSummary,
+    operator: Option<&str>,
+) -> String {
     let a1 = (summary.average_soc.round() as u16).min(255);
     let a2 = (summary.total_remaining_ah.round() as u16).min(255);
     let a3 = (summary.average_voltage.round() as u16).min(255);
@@ -18,7 +29,7 @@ pub fn format_telemetry_packet_seq(seq: u16, summary: &SystemSummary) -> String 
         .unwrap_or(0);
     let binary = summary.alarms().to_aprs_binary_string();
 
-    format!(
+    let packet = format!(
         "T#{:03},{:03},{:03},{:03},{:03},{:03},{}",
         seq % 1000,
         a1,
@@ -27,7 +38,11 @@ pub fn format_telemetry_packet_seq(seq: u16, summary: &SystemSummary) -> String 
         a4,
         a5,
         binary
-    )
+    );
+    match operator {
+        Some(operator) => format!("{packet} {operator}"),
+        None => packet,
+    }
 }
 
 /// Build the four APRS telemetry-definition messages (PARM, UNIT, EQNS, BITS) for a
@@ -39,7 +54,10 @@ pub fn definition_packets(callsign: &str) -> [String; 4] {
         format!(":{padded}:PARM.SOC,Capacity,Voltage,Current,Temp,OV,UV,OC,OT,UT,SC,Htr,Full"),
         format!(":{padded}:UNIT.%,Ah,V,A,C"),
         format!(":{padded}:EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40"),
-        format!(":{padded}:BITS.11111111,Renogy BMS"),
+        format!(
+            ":{padded}:BITS.11111111,{PROJECT_TITLE} {}",
+            env!("CARGO_PKG_REPOSITORY")
+        ),
     ]
 }
 
@@ -71,8 +89,16 @@ mod tests {
     fn packet_encodes_offsets() {
         // current -5 -> +128 = 123; temp 25 -> +40 = 65; no alarms -> all zero bits.
         assert_eq!(
-            format_telemetry_packet_seq(7, &summary()),
+            format_telemetry_packet_seq(7, &summary(), None),
             "T#007,050,050,013,123,065,00000000"
+        );
+    }
+
+    #[test]
+    fn operator_is_appended_as_trailing_comment() {
+        assert_eq!(
+            format_telemetry_packet_seq(7, &summary(), Some("W1AW-12")),
+            "T#007,050,050,013,123,065,00000000 W1AW-12"
         );
     }
 
@@ -80,7 +106,7 @@ mod tests {
     fn seq_wraps_and_missing_temp_is_zero() {
         let mut s = summary();
         s.average_temperature = None;
-        let packet = format_telemetry_packet_seq(1000, &s);
+        let packet = format_telemetry_packet_seq(1000, &s, None);
         assert!(
             packet.starts_with("T#000,"),
             "seq should wrap at 1000: {packet}"
@@ -93,7 +119,7 @@ mod tests {
         let mut s = summary();
         s.average_soc = 999.0;
         s.total_current = 500.0;
-        let fields: Vec<String> = format_telemetry_packet_seq(0, &s)
+        let fields: Vec<String> = format_telemetry_packet_seq(0, &s, None)
             .split(',')
             .map(str::to_string)
             .collect();
@@ -107,6 +133,7 @@ mod tests {
         assert!(d[0].starts_with(":W1AW-12  :PARM."));
         assert_eq!(d[1], ":W1AW-12  :UNIT.%,Ah,V,A,C");
         assert!(d[2].ends_with("EQNS.0,1,0,0,1,0,0,1,0,0,1,-128,0,1,-40"));
-        assert!(d[3].ends_with("BITS.11111111,Renogy BMS"));
+        assert!(d[3].starts_with(":W1AW-12  :BITS.11111111,Renogy BMS "));
+        assert!(d[3].ends_with(env!("CARGO_PKG_REPOSITORY")));
     }
 }

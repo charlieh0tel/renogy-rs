@@ -4,6 +4,11 @@
 # Required for renogy-aprs; will refuse to start with N0CALL.
 #SSID=Y0URS-12
 
+# Optional tactical source callsign (e.g. SOLAR1). When set, beacons are sourced
+# from it and the SSID operator callsign is appended to each telemetry packet as
+# an identifying comment. SSID still drives the APRS-IS login and passcode.
+#APRS_TACTICAL=SOLAR1
+
 # Output transport: agw (TNC, default), aprs-is (internet), or both.
 #APRS_TRANSPORT=agw
 
