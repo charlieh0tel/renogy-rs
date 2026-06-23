@@ -2203,7 +2203,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "renogy-aprs"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "agw",
  "async-trait",
@@ -2218,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-archiver"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "arrow",
  "axum",
@@ -2238,7 +2238,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-archiver-puller"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "clap",
@@ -2250,7 +2250,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-collector"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "clap",
  "crossterm",
@@ -2265,7 +2265,7 @@ dependencies = [
 
 [[package]]
 name = "renogy-rs"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "axum",
