@@ -46,9 +46,17 @@ impl From<TransportArg> for Transport {
 #[command(name = "renogy-aprs")]
 #[command(about = "APRS telemetry beacon for Renogy BMS via Direwolf AGW and/or APRS-IS")]
 struct Args {
-    /// APRS SSID, i.e. callsign-N (e.g., W1AW-12)
+    /// APRS SSID, i.e. callsign-N (e.g., W1AW-12). The licensed station: drives
+    /// the APRS-IS login and passcode, and identifies the operator when --tactical
+    /// is used.
     #[arg(long)]
     ssid: String,
+
+    /// Tactical source callsign (e.g., SOLAR1). When set, beacons are sourced from
+    /// it and the --ssid operator callsign is appended to each telemetry packet as
+    /// an identifying comment.
+    #[arg(long, env = "APRS_TACTICAL")]
+    tactical: Option<String>,
 
     /// VictoriaMetrics URL
     #[arg(long, default_value = "http://localhost:8428")]
@@ -100,8 +108,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let transport: Transport = args.transport.into();
     let aprsis_passcode = passcode(&args.ssid);
 
+    // Beacons are sourced from the tactical call when set, otherwise the operator
+    // station. With a tactical call, the operator call rides along as a telemetry
+    // comment for station identification.
+    let source = args.tactical.as_deref().unwrap_or(&args.ssid);
+    let operator: Option<&str> = args.tactical.as_ref().map(|_| args.ssid.as_str());
+
     info!(
         ssid = %args.ssid,
+        source = %source,
         transport = ?transport,
         vm_url = %args.vm_url,
         interval = args.interval,
@@ -114,7 +129,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let agw_addr = format!("{}:{}", args.agw_host, args.agw_port);
     let config = SinkConfig {
         transport,
-        src: &args.ssid,
+        src: source,
+        login: &args.ssid,
         dst: &args.tocall,
         agw_addr: &agw_addr,
         aprsis_host: &args.aprsis_host,
@@ -132,12 +148,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
             queue(
                 &sender,
-                Packet::Definitions(definition_packets(&args.ssid).to_vec()),
+                Packet::Definitions(definition_packets(source).to_vec()),
             );
             last_definitions = Instant::now();
         }
 
-        match build_beacon_packet(&vm_client).await {
+        match build_beacon_packet(&vm_client, operator).await {
             Ok(packet) => queue(&sender, Packet::Telemetry(packet)),
             Err(e) => error!(error = %e, "Failed to build beacon"),
         }
@@ -165,7 +181,10 @@ fn queue(sender: &broadcast::Sender<Packet>, packet: Packet) {
     }
 }
 
-async fn build_beacon_packet(vm_client: &VmClient) -> Result<String, String> {
+async fn build_beacon_packet(
+    vm_client: &VmClient,
+    operator: Option<&str>,
+) -> Result<String, String> {
     debug!("Querying batteries from VictoriaMetrics");
     let batteries = vm_client
         .query_all_batteries()
@@ -185,13 +204,13 @@ async fn build_beacon_packet(vm_client: &VmClient) -> Result<String, String> {
         "System summary computed"
     );
 
-    let packet = format_telemetry_packet(&summary);
+    let packet = format_telemetry_packet(&summary, operator);
     debug!(packet = %packet, "Formatted telemetry packet");
     Ok(packet)
 }
 
-fn format_telemetry_packet(summary: &SystemSummary) -> String {
+fn format_telemetry_packet(summary: &SystemSummary, operator: Option<&str>) -> String {
     static SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    renogy_aprs::telemetry::format_telemetry_packet_seq(seq, summary)
+    renogy_aprs::telemetry::format_telemetry_packet_seq(seq, summary, operator)
 }

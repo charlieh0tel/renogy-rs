@@ -73,8 +73,12 @@ impl Transport {
 /// Connection parameters shared by all transmitters.
 pub struct SinkConfig<'a> {
     pub transport: Transport,
-    /// Source callsign-SSID (e.g. `W1AW-12`).
+    /// Source callsign placed in every transmitted frame: the tactical call when
+    /// configured, otherwise the operator station (e.g. `W1AW-12`).
     pub src: &'a str,
+    /// Licensed operator callsign-SSID used for the APRS-IS login; its passcode
+    /// must verify. Equals `src` when no tactical call is configured.
+    pub login: &'a str,
     /// APRS destination/TOCALL.
     pub dst: &'a str,
     pub agw_addr: &'a str,
@@ -110,6 +114,7 @@ pub fn spawn_receivers(
         let tx = AprsIsTransmitter::new(AprsIsClient::new(
             config.aprsis_host.to_string(),
             config.aprsis_port,
+            config.login.to_string(),
             config.src.to_string(),
             config.dst.to_string(),
             config.aprsis_passcode,

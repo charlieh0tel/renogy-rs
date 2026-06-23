@@ -45,6 +45,7 @@ sudo editor /etc/default/renogy-rs
 
 `renogy-aprs` also reads these optional environment variables (see `/etc/default/renogy-aprs`):
 
+- **APRS_TACTICAL** -- Optional tactical source callsign (e.g. `SOLAR1`). When set, beacons are sourced from it and the **SSID** operator callsign is appended to each telemetry packet as an identifying comment. **SSID** still drives the APRS-IS login and passcode.
 - **APRS_TRANSPORT** -- `agw` (TNC, default), `aprs-is` (internet), or `both`.
 - **APRSIS_HOST** / **APRSIS_PORT** -- APRS-IS server (default `rotate.aprs2.net:14580`). The passcode is computed from the callsign automatically.
 
