@@ -46,6 +46,9 @@ sudo editor /etc/default/renogy-rs
 `renogy-aprs` also reads these optional environment variables (see `/etc/default/renogy-aprs`):
 
 - **APRS_TACTICAL** -- Optional tactical source callsign (e.g. `SOLAR1`). When set, beacons are sourced from it and the **SSID** operator callsign is appended to each telemetry packet as an identifying comment. **SSID** still drives the APRS-IS login and passcode.
+- **APRS_LATITUDE** / **APRS_LONGITUDE** -- Static station position in decimal degrees. Read once at startup. aprs.fi only collects telemetry for stations that have sent a position, so set one to be mapped and have telemetry shown.
+- **APRS_GPSD** -- Alternatively, read the position once at startup from gpsd at `HOST[:PORT]` (e.g. `localhost:2947`). Static coordinates take precedence if both are set.
+- **APRS_SYMBOL** / **APRS_POSITION_COMMENT** -- Optional APRS symbol (table selector + code, default `/-`) and comment for the position beacon.
 - **APRS_TRANSPORT** -- `agw` (TNC, default), `aprs-is` (internet), or `both`.
 - **APRSIS_HOST** / **APRSIS_PORT** -- APRS-IS server (default `rotate.aprs2.net:14580`). The passcode is computed from the callsign automatically.
 

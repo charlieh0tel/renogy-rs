@@ -1,6 +1,8 @@
 use clap::Parser;
 use clap::ValueEnum;
 use renogy_aprs::aprsis::passcode;
+use renogy_aprs::position::format_position;
+use renogy_aprs::position::read_fix;
 use renogy_aprs::sink::Packet;
 use renogy_aprs::sink::SinkConfig;
 use renogy_aprs::sink::Transport;
@@ -20,6 +22,8 @@ const DEFAULT_BEACON_INTERVAL: u64 = 600; // 10 minutes
 const DEFINITION_INTERVAL: u64 = 1800; // 30 minutes
 /// Broadcast pipe depth; far more than a receiver can fall behind between beacons.
 const PIPE_DEPTH: usize = 16;
+/// Default gpsd port when `--gpsd` gives only a host.
+const DEFAULT_GPSD_PORT: u16 = 2947;
 
 /// Output transports, selectable on the command line.
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -93,6 +97,26 @@ struct Args {
     /// APRS destination/TOCALL (default: APREN0)
     #[arg(long, default_value = "APREN0")]
     tocall: String,
+
+    /// Static station latitude in decimal degrees (requires --longitude)
+    #[arg(long, env = "APRS_LATITUDE", allow_hyphen_values = true)]
+    latitude: Option<f64>,
+
+    /// Static station longitude in decimal degrees (requires --latitude)
+    #[arg(long, env = "APRS_LONGITUDE", allow_hyphen_values = true)]
+    longitude: Option<f64>,
+
+    /// Read the station position once from gpsd at HOST[:PORT] (e.g. localhost:2947)
+    #[arg(long, env = "APRS_GPSD")]
+    gpsd: Option<String>,
+
+    /// APRS symbol: table selector plus symbol code (e.g. /- for a house)
+    #[arg(long, default_value = "/-", env = "APRS_SYMBOL")]
+    symbol: String,
+
+    /// Comment appended to the position beacon
+    #[arg(long, env = "APRS_POSITION_COMMENT")]
+    position_comment: Option<String>,
 }
 
 #[tokio::main]
@@ -103,6 +127,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if args.ssid.starts_with("N0CALL") {
         return Err("SSID starts with N0CALL; set a real SSID via --ssid or SSID env var".into());
+    }
+
+    if args.latitude.is_some() != args.longitude.is_some() {
+        return Err("--latitude and --longitude must be given together".into());
+    }
+
+    if args.symbol.chars().count() != 2 {
+        return Err("--symbol must be exactly two characters (table selector + code)".into());
     }
 
     let transport: Transport = args.transport.into();
@@ -138,11 +170,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         aprsis_passcode,
     };
 
+    // The station does not move, so resolve the position once at startup.
+    let position = resolve_position(&args).await;
+
     let (sender, _) = broadcast::channel::<Packet>(PIPE_DEPTH);
     let handles = spawn_receivers(&config, &sender)?;
 
     // Producer: queue definitions on startup then every 30 minutes, and a
-    // telemetry frame every interval. Receivers transmit independently.
+    // position plus telemetry frame every interval. Receivers transmit
+    // independently.
     let mut last_definitions = Instant::now() - Duration::from_secs(DEFINITION_INTERVAL);
     loop {
         if last_definitions.elapsed() >= Duration::from_secs(DEFINITION_INTERVAL) {
@@ -151,6 +187,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Packet::Definitions(definition_packets(source).to_vec()),
             );
             last_definitions = Instant::now();
+        }
+
+        // Position precedes telemetry so aprs.fi has a located station to attach
+        // the telemetry to (it drops telemetry from position-less stations).
+        if let Some(position) = &position {
+            queue(&sender, Packet::Position(position.clone()));
         }
 
         match build_beacon_packet(&vm_client, operator).await {
@@ -178,6 +220,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn queue(sender: &broadcast::Sender<Packet>, packet: Packet) {
     if let Err(e) = sender.send(packet) {
         warn!(error = %e, "No receivers for packet");
+    }
+}
+
+/// Resolve the fixed station position once: static coordinates take precedence,
+/// otherwise a single gpsd read. Returns `None` (no position beacon) when neither
+/// is configured or the gpsd read fails.
+async fn resolve_position(args: &Args) -> Option<String> {
+    let comment = args.position_comment.as_deref();
+
+    if let (Some(lat), Some(lon)) = (args.latitude, args.longitude) {
+        if args.gpsd.is_some() {
+            warn!("Both static coordinates and --gpsd given; using static coordinates");
+        }
+        info!(lat, lon, "Using static station position");
+        return Some(format_position(lat, lon, &args.symbol, comment));
+    }
+
+    let addr = args.gpsd.as_deref()?;
+    let (host, port) = parse_host_port(addr);
+    match read_fix(host, port).await {
+        Ok((lat, lon)) => {
+            info!(lat, lon, "Read station position from gpsd");
+            Some(format_position(lat, lon, &args.symbol, comment))
+        }
+        Err(e) => {
+            warn!(error = %e, "Could not read gpsd fix; beaconing without a position");
+            None
+        }
+    }
+}
+
+/// Split `HOST[:PORT]`, defaulting the port to [`DEFAULT_GPSD_PORT`].
+fn parse_host_port(addr: &str) -> (String, u16) {
+    match addr.rsplit_once(':') {
+        Some((host, port)) => (host.to_string(), port.parse().unwrap_or(DEFAULT_GPSD_PORT)),
+        None => (addr.to_string(), DEFAULT_GPSD_PORT),
     }
 }
 

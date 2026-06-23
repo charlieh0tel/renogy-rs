@@ -26,6 +26,8 @@ pub enum SinkError {
 /// A batch of APRS information fields to transmit as a unit.
 #[derive(Clone, Debug)]
 pub enum Packet {
+    /// A station position report (`!...`).
+    Position(String),
     /// A single telemetry data frame (`T#...`).
     Telemetry(String),
     /// The telemetry-definition messages (PARM/UNIT/EQNS/BITS).
@@ -36,13 +38,14 @@ impl Packet {
     /// The APRS information fields carried by this packet.
     fn payloads(&self) -> &[String] {
         match self {
-            Packet::Telemetry(field) => std::slice::from_ref(field),
+            Packet::Position(field) | Packet::Telemetry(field) => std::slice::from_ref(field),
             Packet::Definitions(fields) => fields.as_slice(),
         }
     }
 
     fn kind(&self) -> &'static str {
         match self {
+            Packet::Position(_) => "position",
             Packet::Telemetry(_) => "telemetry",
             Packet::Definitions(_) => "definitions",
         }
