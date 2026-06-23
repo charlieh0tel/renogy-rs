@@ -1102,6 +1102,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpsd_proto"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "247df1fffe6bc378377d6cf894dac08aef2194a6c1c9e2f173c3c10979fa5ca5"
+dependencies = [
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2209,6 +2221,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap",
+ "gpsd_proto",
  "renogy-rs",
  "thiserror",
  "tokio",

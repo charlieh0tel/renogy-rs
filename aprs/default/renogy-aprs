@@ -9,6 +9,17 @@
 # an identifying comment. SSID still drives the APRS-IS login and passcode.
 #APRS_TACTICAL=SOLAR1
 
+# Station position. aprs.fi only collects telemetry for stations that have sent
+# a position, so set one to appear on the map and have telemetry shown.
+# Either give static coordinates (decimal degrees)...
+#APRS_LATITUDE=37.3750
+#APRS_LONGITUDE=-122.0858
+# ...or read the position once at startup from gpsd:
+#APRS_GPSD=localhost:2947
+# Optional APRS symbol (table selector + code) and position comment.
+#APRS_SYMBOL=/-
+#APRS_POSITION_COMMENT=Varsity Park CERT
+
 # Output transport: agw (TNC, default), aprs-is (internet), or both.
 #APRS_TRANSPORT=agw
 

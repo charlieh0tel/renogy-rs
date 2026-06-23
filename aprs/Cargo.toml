@@ -17,6 +17,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+gpsd_proto = "1.0.0"
 
 [dev-dependencies]
 chrono.workspace = true
