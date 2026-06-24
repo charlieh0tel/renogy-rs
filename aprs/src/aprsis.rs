@@ -1,5 +1,6 @@
 //! Direct APRS-IS client: TCP login plus TNC2-format packet injection.
 
+use crate::callsign::Callsign;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -37,15 +38,11 @@ const DRAIN_POLL: Duration = Duration::from_millis(10);
 
 /// Compute the APRS-IS passcode for a callsign.
 ///
-/// The SSID (anything after `-`) is ignored and the base callsign is folded to
-/// uppercase, matching the de-facto standard `aprspass` algorithm.
+/// The base callsign is folded to uppercase, matching the de-facto standard
+/// `aprspass` algorithm.
 #[must_use]
-pub fn passcode(callsign: &str) -> u16 {
-    let base = callsign
-        .split('-')
-        .next()
-        .unwrap_or(callsign)
-        .to_ascii_uppercase();
+pub fn passcode(call: &Callsign) -> u16 {
+    let base = call.as_str().to_ascii_uppercase();
     let bytes = base.as_bytes();
     let mut hash: u16 = 0x73e2;
     let mut i = 0;
@@ -214,25 +211,30 @@ async fn drain(reader: &mut BufReader<OwnedReadHalf>) {
 #[cfg(test)]
 mod tests {
     use super::passcode;
+    use crate::callsign::Callsign;
+
+    fn call(s: &str) -> Callsign {
+        s.parse().expect("valid callsign")
+    }
 
     #[test]
     fn passcode_ignores_ssid() {
-        assert_eq!(passcode("W1AW-12"), passcode("W1AW"));
+        assert_eq!(passcode(&call("W1AW-12")), passcode(&call("W1AW")));
     }
 
     #[test]
     fn passcode_is_case_insensitive() {
-        assert_eq!(passcode("w1aw"), passcode("W1AW"));
+        assert_eq!(passcode(&call("w1aw")), passcode(&call("W1AW")));
     }
 
     #[test]
     fn passcode_is_in_range() {
-        assert!(passcode("W1AW") <= 0x7fff);
+        assert!(passcode(&call("W1AW")) <= 0x7fff);
     }
 
     #[test]
     fn passcode_known_vector() {
         // Regression guard for the standard aprspass algorithm.
-        assert_eq!(passcode("W1AW"), 25988);
+        assert_eq!(passcode(&call("W1AW")), 25988);
     }
 }
