@@ -1,6 +1,8 @@
 use clap::Parser;
 use clap::ValueEnum;
 use renogy_aprs::aprsis::passcode;
+use renogy_aprs::callsign::PLACEHOLDER;
+use renogy_aprs::callsign::Ssid;
 use renogy_aprs::position::format_position;
 use renogy_aprs::position::read_fix;
 use renogy_aprs::sink::Packet;
@@ -57,8 +59,8 @@ struct Args {
     ssid: String,
 
     /// Tactical source callsign (e.g., SOLAR1). When set, beacons are sourced from
-    /// it and the --ssid operator callsign is appended to each telemetry packet as
-    /// an identifying comment.
+    /// it and the operator's base callsign (--ssid without the SSID suffix) is
+    /// appended to each telemetry packet as an identifying comment.
     #[arg(long, env = "APRS_TACTICAL")]
     tactical: Option<String>,
 
@@ -125,8 +127,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = Args::parse();
 
-    if args.ssid.starts_with("N0CALL") {
-        return Err("SSID starts with N0CALL; set a real SSID via --ssid or SSID env var".into());
+    let ssid: Ssid = args
+        .ssid
+        .parse()
+        .map_err(|e| format!("Invalid --ssid: {e}"))?;
+
+    if ssid.base_call().is_placeholder() {
+        return Err(format!(
+            "SSID is the placeholder {PLACEHOLDER}; set a real SSID via --ssid or SSID env var"
+        )
+        .into());
     }
 
     if args.latitude.is_some() != args.longitude.is_some() {
@@ -138,16 +148,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let transport: Transport = args.transport.into();
-    let aprsis_passcode = passcode(&args.ssid);
+    let aprsis_passcode = passcode(&ssid.base_call());
 
     // Beacons are sourced from the tactical call when set, otherwise the operator
-    // station. With a tactical call, the operator call rides along as a telemetry
-    // comment for station identification.
-    let source = args.tactical.as_deref().unwrap_or(&args.ssid);
-    let operator: Option<&str> = args.tactical.as_ref().map(|_| args.ssid.as_str());
+    // station. With a tactical call, the operator's base callsign (the licensed
+    // call without the APRS SSID) rides along as a telemetry comment for station
+    // identification.
+    let source = args.tactical.as_deref().unwrap_or(ssid.as_str());
+    let operator_call = args.tactical.as_ref().map(|_| ssid.base_call());
+    let operator: Option<&str> = operator_call.as_ref().map(|call| call.as_str());
 
     info!(
-        ssid = %args.ssid,
+        ssid = %ssid,
         source = %source,
         transport = ?transport,
         vm_url = %args.vm_url,
@@ -162,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SinkConfig {
         transport,
         src: source,
-        login: &args.ssid,
+        login: ssid.as_str(),
         dst: &args.tocall,
         agw_addr: &agw_addr,
         aprsis_host: &args.aprsis_host,
