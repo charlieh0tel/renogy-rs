@@ -26,6 +26,8 @@ const DEFINITION_INTERVAL: u64 = 1800; // 30 minutes
 const PIPE_DEPTH: usize = 16;
 /// Default gpsd port when `--gpsd` gives only a host.
 const DEFAULT_GPSD_PORT: u16 = 2947;
+/// Default seconds to wait for a gpsd fix at startup.
+const DEFAULT_GPSD_FIX_TIMEOUT: u64 = 30;
 
 /// Output transports, selectable on the command line.
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -112,6 +114,10 @@ struct Args {
     #[arg(long, env = "APRS_GPSD")]
     gpsd: Option<String>,
 
+    /// Seconds to wait for a gpsd fix at startup before exiting (systemd then retries)
+    #[arg(long, default_value_t = DEFAULT_GPSD_FIX_TIMEOUT, env = "APRS_GPSD_FIX_TIMEOUT")]
+    gpsd_fix_timeout: u64,
+
     /// APRS symbol: table selector plus symbol code (e.g. /- for a house)
     #[arg(long, default_value = "/-", env = "APRS_SYMBOL")]
     symbol: String,
@@ -183,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // The station does not move, so resolve the position once at startup.
-    let position = resolve_position(&args).await;
+    let position = resolve_position(&args).await?;
 
     let (sender, _) = broadcast::channel::<Packet>(PIPE_DEPTH);
     let handles = spawn_receivers(&config, &sender)?;
@@ -236,9 +242,10 @@ fn queue(sender: &broadcast::Sender<Packet>, packet: Packet) {
 }
 
 /// Resolve the fixed station position once: static coordinates take precedence,
-/// otherwise a single gpsd read. Returns `None` (no position beacon) when neither
-/// is configured or the gpsd read fails.
-async fn resolve_position(args: &Args) -> Option<String> {
+/// otherwise a single gpsd read. Returns `Ok(None)` (no position beacon) when
+/// neither is configured. When gpsd is configured but no fix is obtained, returns
+/// an error so the process exits and systemd restarts it to retry.
+async fn resolve_position(args: &Args) -> Result<Option<String>, String> {
     let comment = args.position_comment.as_deref();
 
     if let (Some(lat), Some(lon)) = (args.latitude, args.longitude) {
@@ -246,21 +253,19 @@ async fn resolve_position(args: &Args) -> Option<String> {
             warn!("Both static coordinates and --gpsd given; using static coordinates");
         }
         info!(lat, lon, "Using static station position");
-        return Some(format_position(lat, lon, &args.symbol, comment));
+        return Ok(Some(format_position(lat, lon, &args.symbol, comment)));
     }
 
-    let addr = args.gpsd.as_deref()?;
+    let Some(addr) = args.gpsd.as_deref() else {
+        return Ok(None);
+    };
     let (host, port) = parse_host_port(addr);
-    match read_fix(host, port).await {
-        Ok((lat, lon)) => {
-            info!(lat, lon, "Read station position from gpsd");
-            Some(format_position(lat, lon, &args.symbol, comment))
-        }
-        Err(e) => {
-            warn!(error = %e, "Could not read gpsd fix; beaconing without a position");
-            None
-        }
-    }
+    let fix_wait = Duration::from_secs(args.gpsd_fix_timeout);
+    let (lat, lon) = read_fix(host, port, fix_wait)
+        .await
+        .map_err(|e| format!("gpsd fix failed ({e}); exiting so systemd retries"))?;
+    info!(lat, lon, "Read station position from gpsd");
+    Ok(Some(format_position(lat, lon, &args.symbol, comment)))
 }
 
 /// Split `HOST[:PORT]`, defaulting the port to [`DEFAULT_GPSD_PORT`].

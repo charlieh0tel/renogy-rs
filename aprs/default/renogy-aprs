@@ -17,6 +17,9 @@
 #APRS_LONGITUDE=-122.0858
 # ...or read the position once at startup from gpsd:
 #APRS_GPSD=localhost:2947
+# Seconds to wait for a gpsd fix at startup. If no fix is obtained the service
+# exits and systemd restarts it to retry. Raise it if the GPS is slow to lock.
+#APRS_GPSD_FIX_TIMEOUT=30
 # Optional APRS symbol (table selector + code) and position comment.
 #APRS_SYMBOL=/-
 #APRS_POSITION_COMMENT=Varsity Park CERT
