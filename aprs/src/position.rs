@@ -107,8 +107,8 @@ mod tests {
     #[test]
     fn formats_northwest_position() {
         assert_eq!(
-            format_position(37.375, -122.085_833_3, "/-", Some("Varsity Park CERT")),
-            "!3722.50N/12205.15W-Varsity Park CERT"
+            format_position(40.7128, -74.006, "/-", Some("Solar site")),
+            "!4042.77N/07400.36W-Solar site"
         );
     }
 
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn uses_given_symbol_table_and_code() {
-        let packet = format_position(37.375, -122.085_833_3, "\\c", None);
-        assert!(packet.starts_with("!3722.50N\\12205.15Wc"));
+        let packet = format_position(40.7128, -74.006, "\\c", None);
+        assert!(packet.starts_with("!4042.77N\\07400.36Wc"));
     }
 }

@@ -13,8 +13,8 @@
 # Station position. aprs.fi only collects telemetry for stations that have sent
 # a position, so set one to appear on the map and have telemetry shown.
 # Either give static coordinates (decimal degrees)...
-#APRS_LATITUDE=37.3750
-#APRS_LONGITUDE=-122.0858
+#APRS_LATITUDE=40.7128
+#APRS_LONGITUDE=-74.0060
 # ...or read the position once at startup from gpsd:
 #APRS_GPSD=localhost:2947
 # Seconds to wait for a gpsd fix at startup. If no fix is obtained the service
@@ -22,7 +22,7 @@
 #APRS_GPSD_FIX_TIMEOUT=30
 # Optional APRS symbol (table selector + code) and position comment.
 #APRS_SYMBOL=/-
-#APRS_POSITION_COMMENT=Varsity Park CERT
+#APRS_POSITION_COMMENT=Solar site
 
 # Output transport: agw (TNC, default), aprs-is (internet), or both.
 #APRS_TRANSPORT=agw
