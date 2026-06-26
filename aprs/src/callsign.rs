@@ -19,7 +19,7 @@ fn base_of(s: &str) -> &str {
     s.split('-').next().unwrap_or(s)
 }
 
-/// A licensed callsign with no SSID suffix (e.g. `AI6KG`).
+/// A licensed callsign with no SSID suffix (e.g. `N0CALL`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Callsign(String);
 
@@ -54,7 +54,7 @@ impl FromStr for Callsign {
     }
 }
 
-/// An APRS station address in `callsign-N` form (e.g. `AI6KG-11`), or a bare
+/// An APRS station address in `callsign-N` form (e.g. `N0CALL-11`), or a bare
 /// callsign when no SSID is used.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ssid(String);
@@ -96,14 +96,14 @@ mod tests {
 
     #[test]
     fn ssid_base_call_strips_suffix() {
-        let ssid: Ssid = "AI6KG-11".parse().unwrap();
-        assert_eq!(ssid.base_call().as_str(), "AI6KG");
+        let ssid: Ssid = "N0CALL-11".parse().unwrap();
+        assert_eq!(ssid.base_call().as_str(), "N0CALL");
     }
 
     #[test]
     fn bare_callsign_passes_through() {
-        let ssid: Ssid = "AI6KG".parse().unwrap();
-        assert_eq!(ssid.base_call().as_str(), "AI6KG");
+        let ssid: Ssid = "N0CALL".parse().unwrap();
+        assert_eq!(ssid.base_call().as_str(), "N0CALL");
     }
 
     #[test]
