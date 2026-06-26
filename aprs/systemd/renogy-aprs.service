@@ -1,6 +1,7 @@
 [Unit]
 Description=Renogy APRS Reporter
-After=network-online.target direwolf.service
+# gpsd ordering-only (no Wants), so it applies only when gpsd is enabled.
+After=network-online.target direwolf.service gpsd.socket gpsd.service
 Wants=network-online.target direwolf.service
 
 [Service]
