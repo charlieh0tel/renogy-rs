@@ -18,8 +18,6 @@ pub enum PositionError {
 
 /// Per-read socket timeout while waiting for gpsd data.
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
-/// Overall time to wait for gpsd to report a 2D/3D fix.
-const FIX_WAIT: Duration = Duration::from_secs(30);
 
 /// Build an APRS position report (`!lat<table>lon<code><comment>`, no timestamp).
 ///
@@ -58,16 +56,25 @@ fn format_longitude(lon: f64) -> String {
     format!("{degrees:03}{minutes:05.2}{hemisphere}")
 }
 
-/// Read a single position fix from gpsd, blocking until a 2D/3D fix or timeout.
+/// Read a single position fix from gpsd, blocking until a 2D/3D fix or until
+/// `fix_wait` elapses.
 ///
 /// Runs the blocking gpsd I/O on a blocking thread to keep the reactor free.
-pub async fn read_fix(host: String, port: u16) -> Result<(f64, f64), PositionError> {
-    tokio::task::spawn_blocking(move || read_fix_blocking(&host, port))
+pub async fn read_fix(
+    host: String,
+    port: u16,
+    fix_wait: Duration,
+) -> Result<(f64, f64), PositionError> {
+    tokio::task::spawn_blocking(move || read_fix_blocking(&host, port, fix_wait))
         .await
         .map_err(|e| PositionError::Gpsd(format!("gpsd task panicked: {e}")))?
 }
 
-fn read_fix_blocking(host: &str, port: u16) -> Result<(f64, f64), PositionError> {
+fn read_fix_blocking(
+    host: &str,
+    port: u16,
+    fix_wait: Duration,
+) -> Result<(f64, f64), PositionError> {
     let map_io = |e: std::io::Error| PositionError::Gpsd(e.to_string());
     let stream = TcpStream::connect((host, port)).map_err(map_io)?;
     stream
@@ -79,7 +86,7 @@ fn read_fix_blocking(host: &str, port: u16) -> Result<(f64, f64), PositionError>
     gpsd_proto::handshake(&mut reader, &mut writer)
         .map_err(|e| PositionError::Gpsd(e.to_string()))?;
 
-    let deadline = Instant::now() + FIX_WAIT;
+    let deadline = Instant::now() + fix_wait;
     while Instant::now() < deadline {
         let data =
             gpsd_proto::get_data(&mut reader).map_err(|e| PositionError::Gpsd(e.to_string()))?;
@@ -90,7 +97,7 @@ fn read_fix_blocking(host: &str, port: u16) -> Result<(f64, f64), PositionError>
             return Ok((lat, lon));
         }
     }
-    Err(PositionError::NoFix(FIX_WAIT))
+    Err(PositionError::NoFix(fix_wait))
 }
 
 #[cfg(test)]
