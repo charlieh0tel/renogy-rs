@@ -1,17 +1,17 @@
 use clap::Parser;
 use clap::ValueEnum;
-use renogy_aprs::aprsis::passcode;
-use renogy_aprs::callsign::PLACEHOLDER;
-use renogy_aprs::callsign::Ssid;
-use renogy_aprs::position::format_position;
-use renogy_aprs::position::read_fix;
-use renogy_aprs::sink::Packet;
-use renogy_aprs::sink::SinkConfig;
-use renogy_aprs::sink::Transport;
-use renogy_aprs::sink::spawn_receivers;
-use renogy_aprs::telemetry::definition_packets;
-use renogy_rs::system_summary::SystemSummary;
-use renogy_rs::vm_client::VmClient;
+use renogy::system_summary::SystemSummary;
+use renogy::vm_client::VmClient;
+use renogymon_aprs::aprsis::passcode;
+use renogymon_aprs::callsign::PLACEHOLDER;
+use renogymon_aprs::callsign::Ssid;
+use renogymon_aprs::position::format_position;
+use renogymon_aprs::position::read_fix;
+use renogymon_aprs::sink::Packet;
+use renogymon_aprs::sink::SinkConfig;
+use renogymon_aprs::sink::Transport;
+use renogymon_aprs::sink::spawn_receivers;
+use renogymon_aprs::telemetry::definition_packets;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::broadcast;
@@ -51,7 +51,7 @@ impl From<TransportArg> for Transport {
 }
 
 #[derive(Parser)]
-#[command(name = "renogy-aprs")]
+#[command(name = "renogymon-aprs")]
 #[command(about = "APRS telemetry beacon for Renogy BMS via Direwolf AGW and/or APRS-IS")]
 struct Args {
     /// APRS SSID, i.e. callsign-N (e.g., W1AW-12). The licensed station: drives
@@ -307,5 +307,5 @@ async fn build_beacon_packet(
 fn format_telemetry_packet(summary: &SystemSummary, operator: Option<&str>) -> String {
     static SEQ: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
     let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    renogy_aprs::telemetry::format_telemetry_packet_seq(seq, summary, operator)
+    renogymon_aprs::telemetry::format_telemetry_packet_seq(seq, summary, operator)
 }

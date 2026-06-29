@@ -11,7 +11,7 @@ use fs2::FileExt;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "renogy-archiver-puller")]
+#[command(name = "renogymon-archiver-puller")]
 #[command(about = "Pull Renogy Parquet archives from the RPi4 over Tailscale")]
 struct Args {
     /// rsync source: <user>@<host>:<path> (path is relative to the rrsync root, e.g. ./)
@@ -26,12 +26,12 @@ struct Args {
     #[arg(
         long,
         env = "ARCHIVER_SSH_KEY",
-        default_value = "/var/lib/renogy-archiver-puller/id_ed25519"
+        default_value = "/var/lib/renogymon-archiver-puller/id_ed25519"
     )]
     ssh_key: PathBuf,
 
     /// Lock file guarding against overlapping runs
-    #[arg(long, default_value = "/var/lib/renogy-archiver-puller/.lock")]
+    #[arg(long, default_value = "/var/lib/renogymon-archiver-puller/.lock")]
     lock_file: PathBuf,
 
     #[arg(short, long)]
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn pull(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let remote = args.remote.clone().ok_or(
-        "ARCHIVER_REMOTE not set (pass --remote or set it in /etc/default/renogy-archiver-puller)",
+        "ARCHIVER_REMOTE not set (pass --remote or set it in /etc/default/renogymon-archiver-puller)",
     )?;
     std::fs::create_dir_all(&args.dest)?;
 

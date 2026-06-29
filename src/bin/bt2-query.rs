@@ -1,9 +1,9 @@
 use clap::Parser;
-use renogy_rs::bt2::Bt2Transport;
-use renogy_rs::bt2::discover_bt2_devices;
-use renogy_rs::query::query_battery;
-use renogy_rs::util::parse_address;
-use renogy_rs::util::print_battery_info;
+use renogy::bt2::Bt2Transport;
+use renogy::bt2::discover_bt2_devices;
+use renogy::query::query_battery;
+use renogy::util::parse_address;
+use renogy::util::print_battery_info;
 
 #[derive(Parser)]
 #[command(name = "bt2-query")]

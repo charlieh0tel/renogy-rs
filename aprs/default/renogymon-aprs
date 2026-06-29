@@ -1,7 +1,7 @@
-# Configuration for renogy-aprs
+# Configuration for renogymon-aprs
 
 # APRS SSID, i.e. callsign-N (e.g. W1AW-12)
-# Required for renogy-aprs; will refuse to start with N0CALL.
+# Required for renogymon-aprs; will refuse to start with N0CALL.
 #SSID=Y0URS-12
 
 # Optional tactical source callsign (e.g. SOLAR1). When set, beacons are sourced

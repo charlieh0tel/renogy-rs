@@ -19,13 +19,13 @@ Test the **serial (Modbus RTU)** path, not Bluetooth.
 Modbus-RTU battery emulator
     |  pseudo-terminal (PTY) pair  ==  a virtual serial port
     v
-renogy-bms-collector --serial --port <pty>
+renogymon-bms-collector --serial --port <pty>
     |  influx /write
     v
 VictoriaMetrics (real single binary, ephemeral port + tmpdir)
     |  /api/v1/export, /api/v1/series
     v
-renogy-archiver export   ->   staging/renogy_YYYY-MM-DD.parquet
+renogymon-archiver export   ->   staging/renogy_YYYY-MM-DD.parquet
     |  (Tier 2) rsync --remove-source-files
     v
 local archive dir   (assert files present + removed from source)

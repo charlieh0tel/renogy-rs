@@ -3,7 +3,7 @@
 //!
 //! Hermetic -- no SSH: rsync does a local-to-local copy (ignoring `-e ssh`) when the
 //! source has no `host:`, so we point the puller at a local staging dir. Gated with
-//! `#[ignore]`; run with `cargo test -p renogy-archiver-puller --test pull -- --ignored`.
+//! `#[ignore]`; run with `cargo test -p renogymon-archiver-puller --test pull -- --ignored`.
 
 use std::fs;
 use std::process::Command;
@@ -18,7 +18,7 @@ fn pull_copies_then_removes_source() {
     let name = "renogy_2026-06-03.parquet";
     fs::write(staging.join(name), b"PAR1 fake parquet").unwrap();
 
-    let status = Command::new(env!("CARGO_BIN_EXE_renogy-archiver-puller"))
+    let status = Command::new(env!("CARGO_BIN_EXE_renogymon-archiver-puller"))
         .args([
             "--remote",
             &format!("{}/", staging.display()),

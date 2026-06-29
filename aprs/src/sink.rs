@@ -52,7 +52,7 @@ impl Packet {
     }
 }
 
-/// Which transports `renogy-aprs` should beacon to.
+/// Which transports `renogymon-aprs` should beacon to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Transport {
     /// TNC only, via the Direwolf AGW interface.

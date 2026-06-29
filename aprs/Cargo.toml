@@ -1,5 +1,5 @@
 [package]
-name = "renogy-aprs"
+name = "renogymon-aprs"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-renogy-rs.workspace = true
+renogy.workspace = true
 agw.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, features = ["env"] }
@@ -23,7 +23,7 @@ gpsd_proto = "1.0.0"
 chrono.workspace = true
 
 [package.metadata.deb]
-name = "renogy-aprs"
+name = "renogymon-aprs"
 copyright = "2024-2026, Christopher Hoover"
 section = "hamradio"
 priority = "optional"
@@ -31,14 +31,14 @@ depends = "$auto"
 extended-description = "Reads Renogy BMS telemetry from VictoriaMetrics and reports it to APRS via direwolf."
 maintainer-scripts = "debian"
 assets = [
-    ["target/release/renogy-aprs", "usr/bin/", "755"],
-    ["sysusers/renogy-aprs.conf", "usr/lib/sysusers.d/renogy-aprs.conf", "644"],
-    ["default/renogy-aprs", "etc/default/", "644"],
+    ["target/release/renogymon-aprs", "usr/bin/", "755"],
+    ["sysusers/renogymon-aprs.conf", "usr/lib/sysusers.d/renogymon-aprs.conf", "644"],
+    ["default/renogymon-aprs", "etc/default/", "644"],
 ]
-conf-files = ["/etc/default/renogy-aprs"]
+conf-files = ["/etc/default/renogymon-aprs"]
 
 [package.metadata.deb.systemd-units]
 unit-scripts = "systemd"
-unit-name = "renogy-aprs"
+unit-name = "renogymon-aprs"
 enable = true
 start = true

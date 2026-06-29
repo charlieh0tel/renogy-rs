@@ -13,7 +13,7 @@ fn status_reports_missing_days() {
         fs::write(dest.join(name), b"x").unwrap();
     }
 
-    let out = Command::new(env!("CARGO_BIN_EXE_renogy-archiver-puller"))
+    let out = Command::new(env!("CARGO_BIN_EXE_renogymon-archiver-puller"))
         .args(["--dest", dest.to_str().unwrap(), "status"])
         .output()
         .unwrap();

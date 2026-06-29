@@ -1,5 +1,5 @@
 [package]
-name = "renogy-collector"
+name = "renogymon-collector"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-renogy-rs.workspace = true
+renogy.workspace = true
 clap.workspace = true
 prometheus-client.workspace = true
 tokio.workspace = true
@@ -20,7 +20,7 @@ ratatui.workspace = true
 crossterm.workspace = true
 
 [package.metadata.deb]
-name = "renogy-collector"
+name = "renogymon-collector"
 copyright = "2024-2026, Christopher Hoover"
 section = "hamradio"
 priority = "optional"
@@ -28,15 +28,15 @@ depends = "$auto"
 extended-description = "Collects Renogy BMS metrics over Bluetooth/serial and exports to VictoriaMetrics, plus a terminal UI."
 maintainer-scripts = "debian"
 assets = [
-    ["target/release/renogy-bms-collector", "usr/bin/", "755"],
-    ["target/release/renogy-tui", "usr/bin/", "755"],
-    ["sysusers/renogy-collector.conf", "usr/lib/sysusers.d/renogy-collector.conf", "644"],
-    ["default/renogy-collector", "etc/default/", "644"],
+    ["target/release/renogymon-bms-collector", "usr/bin/", "755"],
+    ["target/release/renogymon-tui", "usr/bin/", "755"],
+    ["sysusers/renogymon-collector.conf", "usr/lib/sysusers.d/renogymon-collector.conf", "644"],
+    ["default/renogymon-collector", "etc/default/", "644"],
 ]
-conf-files = ["/etc/default/renogy-collector"]
+conf-files = ["/etc/default/renogymon-collector"]
 
 [package.metadata.deb.systemd-units]
 unit-scripts = "systemd"
-unit-name = "renogy-bms-collector"
+unit-name = "renogymon-bms-collector"
 enable = true
 start = true

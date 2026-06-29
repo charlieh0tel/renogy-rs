@@ -1,5 +1,5 @@
 [package]
-name = "renogy-archiver-puller"
+name = "renogymon-archiver-puller"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "renogy-archiver-puller"
+name = "renogymon-archiver-puller"
 path = "src/main.rs"
 
 [dependencies]
@@ -28,19 +28,19 @@ section = "utils"
 priority = "optional"
 depends = "$auto, rsync, openssh-client"
 extended-description = """\
-Pulls daily Parquet archives staged by renogy-archiver on the RPi4 over rsync/SSH \
+Pulls daily Parquet archives staged by renogymon-archiver on the RPi4 over rsync/SSH \
 (Tailscale), deleting them on the source after a successful transfer."""
 maintainer-scripts = "debian"
 assets = [
-    ["target/release/renogy-archiver-puller", "usr/bin/", "755"],
-    ["sysusers/renogy-archiver-puller.conf", "usr/lib/sysusers.d/renogy-archiver-puller.conf", "644"],
-    ["tmpfiles/renogy-archiver-puller.conf", "usr/lib/tmpfiles.d/renogy-archiver-puller.conf", "644"],
-    ["default/renogy-archiver-puller", "etc/default/", "644"],
+    ["target/release/renogymon-archiver-puller", "usr/bin/", "755"],
+    ["sysusers/renogymon-archiver-puller.conf", "usr/lib/sysusers.d/renogymon-archiver-puller.conf", "644"],
+    ["tmpfiles/renogymon-archiver-puller.conf", "usr/lib/tmpfiles.d/renogymon-archiver-puller.conf", "644"],
+    ["default/renogymon-archiver-puller", "etc/default/", "644"],
 ]
-conf-files = ["/etc/default/renogy-archiver-puller"]
+conf-files = ["/etc/default/renogymon-archiver-puller"]
 
 [package.metadata.deb.systemd-units]
 unit-scripts = "systemd"
-unit-name = "renogy-archiver-puller"
+unit-name = "renogymon-archiver-puller"
 enable = true
 start = true

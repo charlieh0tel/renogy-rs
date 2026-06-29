@@ -6,14 +6,14 @@ use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
-use renogy_rs::tui::app::App;
-use renogy_rs::tui::app::Tab;
-use renogy_rs::tui::event::Event;
-use renogy_rs::tui::event::EventHandler;
-use renogy_rs::tui::ui::draw;
-use renogy_rs::tui::vm_client::VmClient;
-use renogy_rs::tui::vm_client::calculate_step_for_duration;
-use renogy_rs::tui::vm_client::query_range;
+use renogy::tui::app::App;
+use renogy::tui::app::Tab;
+use renogy::tui::event::Event;
+use renogy::tui::event::EventHandler;
+use renogy::tui::ui::draw;
+use renogy::tui::vm_client::VmClient;
+use renogy::tui::vm_client::calculate_step_for_duration;
+use renogy::tui::vm_client::query_range;
 use std::io::stdout;
 use std::time::Duration;
 use std::time::Instant;
@@ -25,7 +25,7 @@ const TICK_RATE: Duration = Duration::from_millis(250);
 const MAX_HISTORY_SECS: u64 = 7 * 24 * 3600; // 7 days
 
 #[derive(Parser)]
-#[command(name = "renogy-tui")]
+#[command(name = "renogymon-tui")]
 #[command(about = "TUI monitor for Renogy BMS batteries (VictoriaMetrics backend)")]
 struct Args {
     /// VictoriaMetrics URL
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if batteries.is_empty() {
         eprintln!("No batteries found in VictoriaMetrics!");
-        eprintln!("Make sure renogy-bms-collector is running and has collected data.");
+        eprintln!("Make sure renogymon-bms-collector is running and has collected data.");
         std::process::exit(1);
     }
 

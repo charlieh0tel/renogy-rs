@@ -1,5 +1,5 @@
 [package]
-name = "renogy-archiver"
+name = "renogymon-archiver"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -22,7 +22,7 @@ tracing-subscriber.workspace = true
 thiserror.workspace = true
 
 [package.metadata.deb]
-name = "renogy-archiver"
+name = "renogymon-archiver"
 copyright = "2024-2026, Christopher Hoover"
 section = "hamradio"
 priority = "optional"
@@ -31,17 +31,17 @@ recommends = "openssh-server"
 extended-description = "Exports Renogy BMS history from VictoriaMetrics to daily Parquet files for an archive host to pull."
 maintainer-scripts = "debian"
 assets = [
-    ["target/release/renogy-archiver", "usr/bin/", "755"],
-    ["sysusers/renogy-archiver.conf", "usr/lib/sysusers.d/renogy-archiver.conf", "644"],
+    ["target/release/renogymon-archiver", "usr/bin/", "755"],
+    ["sysusers/renogymon-archiver.conf", "usr/lib/sysusers.d/renogymon-archiver.conf", "644"],
 ]
 
 [package.metadata.deb.systemd-units]
 unit-scripts = "systemd"
-unit-name = "renogy-archiver-export"
+unit-name = "renogymon-archiver-export"
 enable = true
 start = true
 
 [dev-dependencies]
-renogy-rs = { workspace = true, features = ["emulator"] }
+renogy = { workspace = true, features = ["emulator"] }
 axum.workspace = true
 tempfile.workspace = true

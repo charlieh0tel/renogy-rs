@@ -24,7 +24,7 @@ The library includes a transport layer for communicating with Renogy BMS devices
 ### Discovering BT-2 Devices
 
 ```rust
-use renogy_rs::discover_bt2_devices;
+use renogy::discover_bt2_devices;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Connecting to a BT-2
 
 ```rust
-use renogy_rs::{Bt2Transport, Transport, Register};
+use renogy::{Bt2Transport, Transport, Register};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The BT-2 can communicate with multiple BMS units on the same RS-485 bus:
 
 ```rust
-use renogy_rs::{Bt2Transport, Transport, Register, Value};
+use renogy::{Bt2Transport, Transport, Register, Value};
 
 // BMS addresses (as seen in btsnoop capture)
 const BMS_0: u8 = 0x30;  // Battery 0
@@ -87,7 +87,7 @@ async fn read_cell_voltage(
     transport: &mut Bt2Transport,
     bms_addr: u8,
     cell: u8
-) -> renogy_rs::Result<renogy_rs::Value> {
+) -> renogy::Result<renogy::Value> {
     let register = Register::CellVoltage(cell);
     let regs = transport.read_holding_registers(
         bms_addr,
@@ -106,7 +106,7 @@ The library includes a serial transport for direct RS-485 Modbus RTU communicati
 ### Opening a Serial Connection
 
 ```rust
-use renogy_rs::{SerialTransport, Transport, Register};
+use renogy::{SerialTransport, Transport, Register};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -136,9 +136,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The serial transport can communicate with multiple devices on the same bus:
 
 ```rust
-use renogy_rs::{SerialTransport, Transport, Register};
+use renogy::{SerialTransport, Transport, Register};
 
-async fn read_from_multiple_devices(transport: &mut SerialTransport) -> renogy_rs::Result<()> {
+async fn read_from_multiple_devices(transport: &mut SerialTransport) -> renogy::Result<()> {
     let register = Register::CellVoltage(1);
 
     // Read from device 0x01
@@ -161,7 +161,7 @@ async fn read_from_multiple_devices(transport: &mut SerialTransport) -> renogy_r
 ### Reading BMS Data
 
 ```rust
-use renogy_rs::{Register, Value};
+use renogy::{Register, Value};
 
 // Create a register reference
 let register = Register::CellVoltage(1);
@@ -179,7 +179,7 @@ println!("Cell 1 voltage: {:?}", value); // 3.3 volts
 ### Writing Configuration
 
 ```rust
-use renogy_rs::{Register, Value, Transport};
+use renogy::{Register, Value, Transport};
 use uom::si::{electric_potential::volt, f32::ElectricPotential};
 
 // Set cell over voltage limit to 4.2V
@@ -200,9 +200,9 @@ let reg_value = u16::from_be_bytes([data[0], data[1]]);
 ### Factory Reset
 
 ```rust
-use renogy_rs::{DeviceCommand, Transport};
+use renogy::{DeviceCommand, Transport};
 
-async fn factory_reset(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+async fn factory_reset(transport: &mut impl Transport, addr: u8) -> renogy::Result<()> {
     let reset_cmd = DeviceCommand::RestoreFactoryDefault;
 
     if reset_cmd.requires_unlock() {
@@ -220,13 +220,13 @@ async fn factory_reset(transport: &mut impl Transport, addr: u8) -> renogy_rs::R
 ### Device Lock/Unlock
 
 ```rust
-use renogy_rs::Transport;
+use renogy::Transport;
 
-async fn lock_device(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+async fn lock_device(transport: &mut impl Transport, addr: u8) -> renogy::Result<()> {
     transport.write_single_register(addr, 5224, 0x5A5A).await
 }
 
-async fn unlock_device(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+async fn unlock_device(transport: &mut impl Transport, addr: u8) -> renogy::Result<()> {
     transport.write_single_register(addr, 5224, 0xA5A5).await
 }
 ```
@@ -236,10 +236,10 @@ async fn unlock_device(transport: &mut impl Transport, addr: u8) -> renogy_rs::R
 ### Setting Voltage Limits
 
 ```rust
-use renogy_rs::{Register, Value, Transport};
+use renogy::{Register, Value, Transport};
 use uom::si::{electric_potential::volt, f32::ElectricPotential};
 
-async fn set_voltage_limits(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+async fn set_voltage_limits(transport: &mut impl Transport, addr: u8) -> renogy::Result<()> {
     let limits = [
         (Register::CellOverVoltageLimit, 4.2),   // Over voltage protection
         (Register::CellHighVoltageLimit, 4.1),  // High voltage warning
@@ -261,10 +261,10 @@ async fn set_voltage_limits(transport: &mut impl Transport, addr: u8) -> renogy_
 ### Setting Temperature Limits
 
 ```rust
-use renogy_rs::{Register, Value, Transport};
+use renogy::{Register, Value, Transport};
 use uom::si::{thermodynamic_temperature::degree_celsius, f32::ThermodynamicTemperature};
 
-async fn set_temp_limits(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<()> {
+async fn set_temp_limits(transport: &mut impl Transport, addr: u8) -> renogy::Result<()> {
     let temp_limits = [
         (Register::ChargeOverTemperatureLimit, 60.0),   // Max charge temp
         (Register::ChargeHighTemperatureLimit, 50.0),  // High temp warning
@@ -288,7 +288,7 @@ async fn set_temp_limits(transport: &mut impl Transport, addr: u8) -> renogy_rs:
 ### Power Management
 
 ```rust
-use renogy_rs::PowerSettings;
+use renogy::PowerSettings;
 
 // Set charge power to 80%, discharge power to 90%
 let power_settings = PowerSettings::new(80, 90).unwrap();
@@ -301,7 +301,7 @@ println!("Charge: {}%, Discharge: {}%",
 ## Multi-sensor Support
 
 ```rust
-use renogy_rs::Register;
+use renogy::Register;
 
 // Read environment temperature sensors
 for sensor_id in 1..=2 {
@@ -319,7 +319,7 @@ for sensor_id in 1..=2 {
 ## Error Handling
 
 ```rust
-use renogy_rs::{RenogyError, ModbusExceptionCode, Transport};
+use renogy::{RenogyError, ModbusExceptionCode, Transport};
 
 async fn read_with_error_handling(transport: &mut impl Transport, addr: u8) {
     match transport.read_holding_registers(addr, 5000, 1).await {
@@ -391,7 +391,7 @@ match PowerSettings::new(150, 90) { // Invalid: >100%
 use std::time::Duration;
 use tokio::time::sleep;
 
-async fn read_with_retry(transport: &mut impl Transport, addr: u8) -> renogy_rs::Result<Vec<u16>> {
+async fn read_with_retry(transport: &mut impl Transport, addr: u8) -> renogy::Result<Vec<u16>> {
     for attempt in 1..=3 {
         match transport.read_holding_registers(addr, 5000, 1).await {
             Ok(regs) => return Ok(regs),
@@ -447,7 +447,7 @@ For complete register specifications, refer to the Renogy BMS Modbus Protocol V1
 The library uses a physical-layer neutral design with the `Transport` trait:
 
 ```rust
-use renogy_rs::Result;
+use renogy::Result;
 
 pub trait Transport {
     async fn read_holding_registers(&mut self, slave: u8, addr: u16, quantity: u16) -> Result<Vec<u16>>;
@@ -467,7 +467,7 @@ pub trait Transport {
 You can implement the `Transport` trait for other physical layers:
 
 ```rust
-use renogy_rs::{Result, RenogyError};
+use renogy::{Result, RenogyError};
 
 struct MyCustomTransport {
     // Your implementation

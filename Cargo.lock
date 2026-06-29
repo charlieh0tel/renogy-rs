@@ -2214,71 +2214,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
-name = "renogy-aprs"
-version = "0.8.2"
-dependencies = [
- "agw",
- "async-trait",
- "chrono",
- "clap",
- "gpsd_proto",
- "renogy-rs",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "renogy-archiver"
-version = "0.8.2"
-dependencies = [
- "arrow",
- "axum",
- "chrono",
- "clap",
- "parquet",
- "renogy-rs",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "renogy-archiver-puller"
-version = "0.8.2"
-dependencies = [
- "chrono",
- "clap",
- "fs2",
- "tempfile",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "renogy-collector"
-version = "0.8.2"
-dependencies = [
- "clap",
- "crossterm",
- "prometheus-client",
- "ratatui",
- "renogy-rs",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "renogy-rs"
-version = "0.8.2"
+name = "renogy"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -2306,6 +2243,69 @@ dependencies = [
  "tracing-subscriber",
  "uom",
  "zbus",
+]
+
+[[package]]
+name = "renogymon-aprs"
+version = "1.0.0"
+dependencies = [
+ "agw",
+ "async-trait",
+ "chrono",
+ "clap",
+ "gpsd_proto",
+ "renogy",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "renogymon-archiver"
+version = "1.0.0"
+dependencies = [
+ "arrow",
+ "axum",
+ "chrono",
+ "clap",
+ "parquet",
+ "renogy",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "renogymon-archiver-puller"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "fs2",
+ "tempfile",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "renogymon-collector"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "crossterm",
+ "prometheus-client",
+ "ratatui",
+ "renogy",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

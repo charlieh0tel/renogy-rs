@@ -6,10 +6,10 @@ Wants=network-online.target direwolf.service
 
 [Service]
 Type=simple
-User=renogy-aprs
-Group=renogy-aprs
-EnvironmentFile=-/etc/default/renogy-aprs
-ExecStart=/usr/bin/renogy-aprs --ssid ${SSID}
+User=renogymon-aprs
+Group=renogymon-aprs
+EnvironmentFile=-/etc/default/renogymon-aprs
+ExecStart=/usr/bin/renogymon-aprs --ssid ${SSID}
 Restart=on-failure
 RestartSec=10
 Environment=RUST_LOG=info

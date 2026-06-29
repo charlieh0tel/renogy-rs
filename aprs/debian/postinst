@@ -2,7 +2,7 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-    systemd-sysusers /usr/lib/sysusers.d/renogy-aprs.conf >/dev/null 2>&1 || true
+    systemd-sysusers /usr/lib/sysusers.d/renogymon-aprs.conf >/dev/null 2>&1 || true
 fi
 
 #DEBHELPER#
