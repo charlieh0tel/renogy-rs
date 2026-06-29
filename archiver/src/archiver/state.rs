@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn missing_file_is_default() {
-        let path = std::env::temp_dir().join("renogy-archiver-no-such-state.json");
+        let path = std::env::temp_dir().join("renogymon-archiver-no-such-state.json");
         let _ = std::fs::remove_file(&path);
         let state = State::load(&path).unwrap();
         assert_eq!(state.last_exported_day, None);

@@ -15,7 +15,7 @@ jobs:
   build-deb-collector:
     uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
     with:
-      package: renogy-collector
+      package: renogymon-collector
       build-deps: "libdbus-1-dev"
       artifact-suffix: collector
     secrets: inherit
@@ -23,7 +23,7 @@ jobs:
   build-deb-aprs:
     uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
     with:
-      package: renogy-aprs
+      package: renogymon-aprs
       build-deps: "libdbus-1-dev"
       artifact-suffix: aprs
     secrets: inherit
@@ -31,14 +31,14 @@ jobs:
   build-deb-archiver:
     uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
     with:
-      package: renogy-archiver
+      package: renogymon-archiver
       artifact-suffix: archiver
     secrets: inherit
 
   build-deb-puller:
     uses: charlieh0tel/deb-workflows/.github/workflows/rust-build-deb.yml@main
     with:
-      package: renogy-archiver-puller
+      package: renogymon-archiver-puller
       artifact-suffix: puller
     secrets: inherit
 
@@ -57,8 +57,8 @@ jobs:
         run: cargo test --workspace
       - name: Run gated system tests
         run: |
-          cargo test -p renogy-archiver --test system -- --ignored
-          cargo test -p renogy-archiver-puller --test pull -- --ignored
+          cargo test -p renogymon-archiver --test system -- --ignored
+          cargo test -p renogymon-archiver-puller --test pull -- --ignored
 
   trigger-apt-repo:
     needs: [build-deb-collector, build-deb-aprs, build-deb-archiver, build-deb-puller, tests]

@@ -1,12 +1,12 @@
-# renogy-rs
+# renogymon
 
-Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial, with APRS telemetry and a terminal UI.
+Tools for monitoring Renogy BMS batteries via Bluetooth and serial, with APRS telemetry and a terminal UI.
 
 ## Binaries
 
-- **renogy-bms-collector** -- Collects BMS data over Bluetooth and exports metrics to VictoriaMetrics
-- **renogy-aprs** -- Beacons battery telemetry over APRS, via a TNC (Direwolf AGW), APRS-IS, or both
-- **renogy-tui** -- Terminal UI for live battery monitoring
+- **renogymon-bms-collector** -- Collects BMS data over Bluetooth and exports metrics to VictoriaMetrics
+- **renogymon-aprs** -- Beacons battery telemetry over APRS, via a TNC (Direwolf AGW), APRS-IS, or both
+- **renogymon-tui** -- Terminal UI for live battery monitoring
 - **serial-query** -- Query BMS over serial/Modbus
 - **bt2-query** -- Query BMS over Bluetooth
 
@@ -14,10 +14,10 @@ Rust tools for monitoring Renogy BMS batteries via Bluetooth and serial, with AP
 
 ### From .deb package
 
-Download the appropriate .deb from the [releases page](https://github.com/charlieh0tel/renogy-rs/releases) and install:
+Download the appropriate .deb from the [releases page](https://github.com/charlieh0tel/renogymon/releases) and install:
 
 ```bash
-sudo dpkg -i renogy-rs_*.deb
+sudo dpkg -i renogymon-*_*.deb
 ```
 
 ### From source
@@ -30,20 +30,20 @@ cargo install --path .
 
 ## Systemd Services
 
-The repo includes systemd unit files for running `renogy-bms-collector` and `renogy-aprs` as system services. When installed from a .deb, the service files are placed in `/usr/lib/systemd/system/`.
+The repo includes systemd unit files for running `renogymon-bms-collector` and `renogymon-aprs` as system services. When installed from a .deb, the service files are placed in `/usr/lib/systemd/system/`.
 
 ### Configuration
 
-Edit `/etc/default/renogy-rs` to configure the services (installed by the .deb):
+Edit the per-service files under `/etc/default/` (e.g. `renogymon-collector`, `renogymon-aprs`), installed by the .deb:
 
 ```bash
-sudo editor /etc/default/renogy-rs
+sudo editor /etc/default/renogymon-aprs
 ```
 
-- **SSID** -- APRS SSID, i.e. callsign-N (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogy-aprs` will reject at startup.
-- **COLLECTOR_ARGS** -- Arguments for `renogy-bms-collector`. Defaults to `bt2`. Examples: `bt2 --adapter hci1`, `serial --port /dev/ttyUSB0`.
+- **SSID** -- APRS SSID, i.e. callsign-N (e.g. `Y0URS-12`). Defaults to `N0CALL`, which `renogymon-aprs` will reject at startup.
+- **COLLECTOR_ARGS** -- Arguments for `renogymon-bms-collector`. Defaults to `bt2`. Examples: `bt2 --adapter hci1`, `serial --port /dev/ttyUSB0`.
 
-`renogy-aprs` also reads these optional environment variables (see `/etc/default/renogy-aprs`):
+`renogymon-aprs` also reads these optional environment variables (see `/etc/default/renogymon-aprs`):
 
 - **APRS_TACTICAL** -- Optional tactical source callsign (e.g. `SOLAR1`). When set, beacons are sourced from it and the operator's base callsign (**SSID** without the SSID suffix) is appended to each telemetry packet as an identifying comment. **SSID** still drives the APRS-IS login and passcode.
 - **APRS_LATITUDE** / **APRS_LONGITUDE** -- Static station position in decimal degrees. Read once at startup. aprs.fi only collects telemetry for stations that have sent a position, so set one to be mapped and have telemetry shown.
@@ -57,18 +57,18 @@ sudo editor /etc/default/renogy-rs
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now renogy-bms-collector
-sudo systemctl enable --now renogy-aprs
+sudo systemctl enable --now renogymon-bms-collector
+sudo systemctl enable --now renogymon-aprs
 ```
 
 ### Managing the Services
 
 ```bash
-systemctl status renogy-aprs
-systemctl status renogy-bms-collector
+systemctl status renogymon-aprs
+systemctl status renogymon-bms-collector
 
-journalctl -u renogy-aprs -f
-journalctl -u renogy-bms-collector -f
+journalctl -u renogymon-aprs -f
+journalctl -u renogymon-bms-collector -f
 ```
 
 ## License

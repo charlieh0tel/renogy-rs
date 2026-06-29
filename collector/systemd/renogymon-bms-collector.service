@@ -6,11 +6,11 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=renogy-collector
-Group=renogy-collector
+User=renogymon-collector
+Group=renogymon-collector
 SupplementaryGroups=dialout
-EnvironmentFile=-/etc/default/renogy-collector
-ExecStart=/usr/bin/renogy-bms-collector ${COLLECTOR_ARGS}
+EnvironmentFile=-/etc/default/renogymon-collector
+ExecStart=/usr/bin/renogymon-bms-collector ${COLLECTOR_ARGS}
 Restart=on-failure
 RestartSec=30
 Environment=RUST_LOG=info

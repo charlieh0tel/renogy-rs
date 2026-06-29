@@ -1,11 +1,11 @@
-# Configuration for renogy-archiver-puller (archive host side)
+# Configuration for renogymon-archiver-puller (archive host side)
 
 # rsync source. Format: <pi-ssh-user>@<pi-tailscale-name>:<path-relative-to-rrsync-root>
 # The Pi's key is rrsync-scoped to the staging dir, so the path is "./".
-#ARCHIVER_REMOTE=renogy-archiver@rpi4-tailscale-name:./
+#ARCHIVER_REMOTE=renogymon-archiver@rpi4-tailscale-name:./
 
 # Where to land the Parquet corpus on this host.
 ARCHIVER_DEST=/var/lib/renogy-archive
 
 # SSH private key (lives only on this host).
-ARCHIVER_SSH_KEY=/var/lib/renogy-archiver-puller/id_ed25519
+ARCHIVER_SSH_KEY=/var/lib/renogymon-archiver-puller/id_ed25519

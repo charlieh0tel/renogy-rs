@@ -7,17 +7,17 @@ StartLimitBurst=3
 
 [Service]
 Type=oneshot
-User=renogy-archiver-puller
-Group=renogy-archiver-puller
-EnvironmentFile=/etc/default/renogy-archiver-puller
-ExecStart=/usr/bin/renogy-archiver-puller pull
+User=renogymon-archiver-puller
+Group=renogymon-archiver-puller
+EnvironmentFile=/etc/default/renogymon-archiver-puller
+ExecStart=/usr/bin/renogymon-archiver-puller pull
 Restart=on-failure
 RestartSec=300
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectHome=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/renogy-archive /var/lib/renogy-archiver-puller
+ReadWritePaths=/var/lib/renogy-archive /var/lib/renogymon-archiver-puller
 ProtectKernelTunables=yes
 ProtectControlGroups=yes
 RestrictSUIDSGID=yes

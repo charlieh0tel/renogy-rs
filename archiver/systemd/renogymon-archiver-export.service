@@ -4,10 +4,10 @@ After=victoria-metrics.service
 
 [Service]
 Type=oneshot
-User=renogy-archiver
-Group=renogy-archiver
-StateDirectory=renogy-archiver
-ExecStart=/usr/bin/renogy-archiver export
+User=renogymon-archiver
+Group=renogymon-archiver
+StateDirectory=renogymon-archiver
+ExecStart=/usr/bin/renogymon-archiver export
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

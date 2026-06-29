@@ -1,10 +1,10 @@
 //! Hermetic Tier 1 system test (see SYSTEM_TEST.md).
 //!
 //! Emulated battery -> real `query_battery` -> real collector influx encoding ->
-//! in-process mock VictoriaMetrics -> real `renogy-archiver` export -> Parquet. Asserts
+//! in-process mock VictoriaMetrics -> real `renogymon-archiver` export -> Parquet. Asserts
 //! the full set of served values round-trips and that a foreign (non-`renogy_`) series
 //! is excluded. Gated with `#[ignore]`; run with
-//! `cargo test -p renogy-archiver --test system -- --ignored`.
+//! `cargo test -p renogymon-archiver --test system -- --ignored`.
 
 mod common;
 
@@ -18,12 +18,12 @@ use common::MockVm;
 use common::day_noon_ms;
 use common::days_ago;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use renogy_archiver::archiver::ExportConfig;
-use renogy_archiver::archiver::run_export;
-use renogy_rs::collector::metrics::batch_to_influx;
-use renogy_rs::emulator::EmulatedBattery;
-use renogy_rs::query::query_battery;
-use renogy_rs::registers::Register;
+use renogy::collector::metrics::batch_to_influx;
+use renogy::emulator::EmulatedBattery;
+use renogy::query::query_battery;
+use renogy::registers::Register;
+use renogymon_archiver::archiver::ExportConfig;
+use renogymon_archiver::archiver::run_export;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "system test; run explicitly with --ignored"]

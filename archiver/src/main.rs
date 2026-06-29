@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use chrono::NaiveDate;
 use clap::Parser;
 use clap::Subcommand;
-use renogy_archiver::archiver::ExportConfig;
-use renogy_archiver::archiver::run_export;
-use renogy_archiver::archiver::run_status;
+use renogymon_archiver::archiver::ExportConfig;
+use renogymon_archiver::archiver::run_export;
+use renogymon_archiver::archiver::run_status;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "renogy-archiver")]
+#[command(name = "renogymon-archiver")]
 #[command(about = "Export Renogy BMS metrics from VictoriaMetrics to Parquet")]
 struct Args {
     /// VictoriaMetrics base URL
@@ -17,11 +17,11 @@ struct Args {
     vm_addr: String,
 
     /// Local staging directory for Parquet files
-    #[arg(long, default_value = "/var/lib/renogy-archiver/staging")]
+    #[arg(long, default_value = "/var/lib/renogymon-archiver/staging")]
     staging_dir: PathBuf,
 
     /// State file path
-    #[arg(long, default_value = "/var/lib/renogy-archiver/state.json")]
+    #[arg(long, default_value = "/var/lib/renogymon-archiver/state.json")]
     state_file: PathBuf,
 
     #[arg(short, long)]

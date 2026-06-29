@@ -1,4 +1,4 @@
-# renogy-archiver Design Document
+# renogymon-archiver Design Document
 
 ## Goal
 
@@ -34,10 +34,10 @@ RPi4
   VictoriaMetrics (localhost:8428, ~12mo retention)
       |  HTTP /api/v1/export
       v
-  renogy-archiver export            (systemd timer, daily)
+  renogymon-archiver export            (systemd timer, daily)
       |
       v
-  /var/lib/renogy-archiver/staging/renogy_YYYY-MM-DD.parquet   (one file per day)
+  /var/lib/renogymon-archiver/staging/renogy_YYYY-MM-DD.parquet   (one file per day)
       ^
       |  rsync --remove-source-files over SSH, INITIATED BY the archive host
       |  (Tailscale). On success the source files are deleted from the RPi4.
@@ -50,7 +50,7 @@ Archive host  (always-on, on Tailscale; holds the SSH private key)
 
 ## State File
 
-Path: `/var/lib/renogy-archiver/state.json`
+Path: `/var/lib/renogymon-archiver/state.json`
 
 ```json
 {
@@ -122,7 +122,7 @@ not this binary — see "Pull"), so there is no `transfer` subcommand and no
 SSH/remote options.
 
 ```
-renogy-archiver [OPTIONS] <COMMAND>
+renogymon-archiver [OPTIONS] <COMMAND>
 
 Commands:
   export    Export unarchived days from VM to local Parquet staging dir
@@ -130,8 +130,8 @@ Commands:
 
 Options:
   --vm-addr <URL>           VictoriaMetrics base URL [default: http://localhost:8428]
-  --staging-dir <PATH>      Local staging directory [default: /var/lib/renogy-archiver/staging]
-  --state-file <PATH>       State file path [default: /var/lib/renogy-archiver/state.json]
+  --staging-dir <PATH>      Local staging directory [default: /var/lib/renogymon-archiver/staging]
+  --state-file <PATH>       State file path [default: /var/lib/renogymon-archiver/state.json]
   --start-date <YYYY-MM-DD> First-run backfill lower bound (overrides auto-detect of
                             the earliest day in VM). Ignored once state.json exists.
   --max-days <N>            Export at most N days this run, then stop (state advances
@@ -174,13 +174,13 @@ completeness (the Pi can't see pulled-and-deleted files):
 ## Pull (runs on the archive host)
 
 The archive host pulls staged files and removes them from the Pi on success. This is
-done by `renogy-archiver-puller`, a small Rust binary (separate workspace crate, see
+done by `renogymon-archiver-puller`, a small Rust binary (separate workspace crate, see
 "Workspace & Packaging") that reads config and **shells out to the system `rsync`**:
 
 ```
 rsync -a --remove-source-files --partial \
   -e "ssh -i <ARCHIVER_SSH_KEY> -o BatchMode=yes" \
-  <ARCHIVER_REMOTE>            # e.g. renogy-archiver@rpi4:./
+  <ARCHIVER_REMOTE>            # e.g. renogymon-archiver@rpi4:./
   <ARCHIVER_DEST>/             # e.g. /var/lib/renogy-archive/
 ```
 
@@ -189,7 +189,7 @@ rsync -a --remove-source-files --partial \
   pulled files on the Pi for the next run — never an all-or-nothing delete.
 - Only `*.parquet` are pulled; `state.json` stays on the Pi (rrsync is scoped to the
   staging dir, which contains only Parquet files — keep `state.json` in the parent
-  `/var/lib/renogy-archiver`, not in `staging/`).
+  `/var/lib/renogymon-archiver`, not in `staging/`).
 - The binary adds a `flock` guard (timer + manual runs can't overlap) and structured
   `tracing` logging on top of the rsync invocation.
 - Driven by a systemd timer on the archive host (see Systemd Units).
@@ -221,20 +221,20 @@ Note: pin `arrow` and `parquet` to the same major version.
 
 ## Workspace & Packaging
 
-`renogy-rs` is a Cargo workspace: the root is the shared **library** (plus dev
+`renogymon` is a Cargo workspace: the root is the shared **library** (plus dev
 query/example bins, not packaged), and each shipped tool is its own member crate
 producing its own `.deb` via `cargo-deb`. No `dpkg-deb`/`fpm`, no second repo.
 
 ```
-renogy-rs/                  # root = library crate (renogy_rs)
+renogymon/                  # root = library crate (renogy)
   src/                      # lib + dev bins (bt2-query, serial-query, example)
-  collector/                # renogy-bms-collector + renogy-tui   -> deb renogy-collector
-  aprs/                     # renogy-aprs                          -> deb renogy-aprs
-  archiver/                 # renogy-archiver (self-contained)     -> deb renogy-archiver
-  puller/                   # renogy-archiver-puller               -> deb renogy-archiver-puller
+  collector/                # renogymon-bms-collector + renogymon-tui   -> deb renogymon-collector
+  aprs/                     # renogymon-aprs                          -> deb renogymon-aprs
+  archiver/                 # renogymon-archiver (self-contained)     -> deb renogymon-archiver
+  puller/                   # renogymon-archiver-puller               -> deb renogymon-archiver-puller
 ```
 
-- `collector`/`aprs` depend on the `renogy-rs` lib (path); `archiver`/`puller` are
+- `collector`/`aprs` depend on the `renogy` lib (path); `archiver`/`puller` are
   self-contained (the archiver pulls `arrow`/`parquet` out of the lib entirely).
 - Each member ships its own systemd unit(s), `sysusers.d` user, and (collector/aprs)
   `/etc/default/<pkg>` conf-file. Units are plain assets, **not** auto-enabled —
@@ -257,18 +257,18 @@ UID owns the StateDirectory at mode 0700 and a separate SSH login user can't rea
 unlink there. So export runs as a fixed, non-root system user provisioned by
 `sysusers.d`.
 
-`systemd/renogy-archiver.sysusers` (installed to `/usr/lib/sysusers.d/renogy-archiver.conf`):
+`systemd/renogymon-archiver.sysusers` (installed to `/usr/lib/sysusers.d/renogymon-archiver.conf`):
 
 ```
 #Type Name             ID  GECOS              Home directory            Shell
-u     renogy-archiver  -   "Renogy archiver"  /var/lib/renogy-archiver  /bin/sh
+u     renogymon-archiver  -   "Renogy archiver"  /var/lib/renogymon-archiver  /bin/sh
 ```
 
 The shell is `/bin/sh` (not `nologin`) because sshd execs the forced rrsync command
 via the user's shell; the `command=` restriction in `authorized_keys` is what actually
 confines the account. Key-only, no password.
 
-### renogy-archiver-export.service
+### renogymon-archiver-export.service
 
 ```ini
 [Unit]
@@ -277,10 +277,10 @@ After=victoria-metrics.service
 
 [Service]
 Type=oneshot
-User=renogy-archiver
-Group=renogy-archiver
-StateDirectory=renogy-archiver
-ExecStart=/usr/bin/renogy-archiver export
+User=renogymon-archiver
+Group=renogymon-archiver
+StateDirectory=renogymon-archiver
+ExecStart=/usr/bin/renogymon-archiver export
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -290,11 +290,11 @@ ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 ```
 
-`StateDirectory=renogy-archiver` creates `/var/lib/renogy-archiver` owned by
-`renogy-archiver`. Staging goes in `staging/` under it; `state.json` sits in the
+`StateDirectory=renogymon-archiver` creates `/var/lib/renogymon-archiver` owned by
+`renogymon-archiver`. Staging goes in `staging/` under it; `state.json` sits in the
 parent so the rrsync-scoped pull never touches it.
 
-### renogy-archiver-export.timer
+### renogymon-archiver-export.timer
 
 ```ini
 [Unit]
@@ -313,7 +313,7 @@ WantedBy=timers.target
 Shipped by the separate puller package (below), not the Pi `.deb`. The service runs a
 small wrapper script; failures are retried within the run and by the daily timer.
 
-`renogy-archiver-puller.service`:
+`renogymon-archiver-puller.service`:
 
 ```ini
 [Unit]
@@ -323,16 +323,16 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=renogy-archiver-puller
-Group=renogy-archiver-puller
-EnvironmentFile=/etc/default/renogy-archiver-puller
-ExecStart=/usr/bin/renogy-archiver-puller pull
+User=renogymon-archiver-puller
+Group=renogymon-archiver-puller
+EnvironmentFile=/etc/default/renogymon-archiver-puller
+ExecStart=/usr/bin/renogymon-archiver-puller pull
 Restart=on-failure
 RestartSec=300
 StartLimitBurst=3
 ```
 
-`renogy-archiver-puller.timer`:
+`renogymon-archiver-puller.timer`:
 
 ```ini
 [Unit]
@@ -350,27 +350,27 @@ WantedBy=timers.target
 (Tailscale down) is retried by `Restart=on-failure` within the run, and otherwise the
 next daily fire pulls the accumulated backlog.
 
-## Archive Host Puller Package (`renogy-archiver-puller`)
+## Archive Host Puller Package (`renogymon-archiver-puller`)
 
 A second Rust crate in the workspace (`puller/`), built and packaged by `cargo-deb`
 like the main crate. It installs:
 
 ```
-/usr/bin/renogy-archiver-puller                          # the Rust binary
-/usr/lib/systemd/system/renogy-archiver-puller.service     # disabled by default
-/usr/lib/systemd/system/renogy-archiver-puller.timer       # disabled by default
-/usr/lib/sysusers.d/renogy-archiver-puller.conf          # creates the puller user
-/usr/lib/tmpfiles.d/renogy-archiver-puller.conf          # creates state + dest dirs
-/etc/default/renogy-archiver-puller                      # conf-file (config)
+/usr/bin/renogymon-archiver-puller                          # the Rust binary
+/usr/lib/systemd/system/renogymon-archiver-puller.service     # disabled by default
+/usr/lib/systemd/system/renogymon-archiver-puller.timer       # disabled by default
+/usr/lib/sysusers.d/renogymon-archiver-puller.conf          # creates the puller user
+/usr/lib/tmpfiles.d/renogymon-archiver-puller.conf          # creates state + dest dirs
+/etc/default/renogymon-archiver-puller                      # conf-file (config)
 ```
 
 ### The binary
 
-`renogy-archiver-puller` parses config (clap, with env fallback from the
+`renogymon-archiver-puller` parses config (clap, with env fallback from the
 `EnvironmentFile`). Runtime deps: `rsync` + `openssh-client`. Two subcommands:
 
 ```
-renogy-archiver-puller <COMMAND>
+renogymon-archiver-puller <COMMAND>
 
 Commands:
   pull      Pull staged files from the Pi and delete-on-success (run by the timer)
@@ -393,7 +393,7 @@ Commands:
 
 ```toml
 [package]
-name = "renogy-archiver-puller"
+name = "renogymon-archiver-puller"
 version = "0.1.0"
 edition = "2024"
 
@@ -405,45 +405,45 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [package.metadata.deb]
 depends = "$auto, rsync, openssh-client"
 assets = [
-  ["target/release/renogy-archiver-puller", "usr/bin/", "755"],
-  ["systemd/renogy-archiver-puller.service", "usr/lib/systemd/system/", "644"],
-  ["systemd/renogy-archiver-puller.timer", "usr/lib/systemd/system/", "644"],
-  ["sysusers/renogy-archiver-puller.conf", "usr/lib/sysusers.d/renogy-archiver-puller.conf", "644"],
-  ["tmpfiles/renogy-archiver-puller.conf", "usr/lib/tmpfiles.d/renogy-archiver-puller.conf", "644"],
-  ["default/renogy-archiver-puller", "etc/default/", "644"],
+  ["target/release/renogymon-archiver-puller", "usr/bin/", "755"],
+  ["systemd/renogymon-archiver-puller.service", "usr/lib/systemd/system/", "644"],
+  ["systemd/renogymon-archiver-puller.timer", "usr/lib/systemd/system/", "644"],
+  ["sysusers/renogymon-archiver-puller.conf", "usr/lib/sysusers.d/renogymon-archiver-puller.conf", "644"],
+  ["tmpfiles/renogymon-archiver-puller.conf", "usr/lib/tmpfiles.d/renogymon-archiver-puller.conf", "644"],
+  ["default/renogymon-archiver-puller", "etc/default/", "644"],
 ]
-conf-files = ["/etc/default/renogy-archiver-puller"]
+conf-files = ["/etc/default/renogymon-archiver-puller"]
 ```
 
 Units are plain assets (not cargo-deb's auto-enabling `systemd-units` integration), so
 the timer ships **disabled** — enable it after configuring `ARCHIVER_REMOTE` and
 installing the key.
 
-### Config — `/etc/default/renogy-archiver-puller`
+### Config — `/etc/default/renogymon-archiver-puller`
 
 ```sh
 # Source: <pi-ssh-user>@<pi-tailscale-name>:<path-relative-to-rrsync-root>
-ARCHIVER_REMOTE=renogy-archiver@rpi4-tailscale-name:./
+ARCHIVER_REMOTE=renogymon-archiver@rpi4-tailscale-name:./
 
 # Where to land the Parquet corpus on this host
 ARCHIVER_DEST=/var/lib/renogy-archive
 
 # Private key (lives only on this host)
-ARCHIVER_SSH_KEY=/var/lib/renogy-archiver-puller/id_ed25519
+ARCHIVER_SSH_KEY=/var/lib/renogymon-archiver-puller/id_ed25519
 ```
 
 ### sysusers / tmpfiles
 
-`sysusers/renogy-archiver-puller.conf`:
+`sysusers/renogymon-archiver-puller.conf`:
 ```
-u renogy-archiver-puller - "Renogy archive puller" /var/lib/renogy-archiver-puller /usr/sbin/nologin
+u renogymon-archiver-puller - "Renogy archive puller" /var/lib/renogymon-archiver-puller /usr/sbin/nologin
 ```
 (`nologin` is fine here — this user never *receives* SSH; it only initiates it.)
 
-`tmpfiles/renogy-archiver-puller.conf`:
+`tmpfiles/renogymon-archiver-puller.conf`:
 ```
-d /var/lib/renogy-archiver-puller 0700 renogy-archiver-puller renogy-archiver-puller -
-d /var/lib/renogy-archive         0755 renogy-archiver-puller renogy-archiver-puller -
+d /var/lib/renogymon-archiver-puller 0700 renogymon-archiver-puller renogymon-archiver-puller -
+d /var/lib/renogy-archive         0755 renogymon-archiver-puller renogymon-archiver-puller -
 ```
 
 The dest dir mode (`0755`) lets your analysis tooling (Jupyter as your own user) read
@@ -453,24 +453,24 @@ dpkg triggers run sysusers/tmpfiles on install (postinst fallback on older syste
 ## Non-root Posture (all services)
 
 All services run non-root, each as its own dedicated user (least privilege; no shared
-blast radius), provisioned from a shipped `sysusers.d` file in the `renogy-rs` deb:
+blast radius), provisioned from a shipped `sysusers.d` file in each member's deb:
 
 ```
-u renogy-archiver  - "Renogy archiver"
-u renogy-collector - "Renogy BMS collector"
-u renogy-aprs      - "Renogy APRS reporter"
+u renogymon-archiver  - "Renogy archiver"
+u renogymon-collector - "Renogy BMS collector"
+u renogymon-aprs      - "Renogy APRS reporter"
 ```
 
 | Service                | User               | Notes                                                |
 |------------------------|--------------------|------------------------------------------------------|
-| `renogy-archiver`      | `renogy-archiver`  | owns its StateDirectory                              |
-| `renogy-aprs`          | `renogy-aprs`      | TCP client to direwolf AGW + HTTP to VM             |
-| `renogy-bms-collector` | `renogy-collector` | `SupplementaryGroups=dialout` (serial); BT-2 via D-Bus |
+| `renogymon-archiver`      | `renogymon-archiver`  | owns its StateDirectory                              |
+| `renogymon-aprs`          | `renogymon-aprs`      | TCP client to direwolf AGW + HTTP to VM             |
+| `renogymon-bms-collector` | `renogymon-collector` | `SupplementaryGroups=dialout` (serial); BT-2 via D-Bus |
 
-- **`renogy-aprs` — drop-in.** `User=`/`Group=renogy-aprs`. Keep existing hardening;
+- **`renogymon-aprs` — drop-in.** `User=`/`Group=renogymon-aprs`. Keep existing hardening;
   do **not** re-add `ProtectSystem=strict` (a prior commit dropped it for the direwolf
   loopback).
-- **`renogy-bms-collector` — non-root, no BlueZ coupling.** `User=renogy-collector`,
+- **`renogymon-bms-collector` — non-root, no BlueZ coupling.** `User=renogymon-collector`,
   `SupplementaryGroups=dialout` (serial mode; `dialout` is base-system, not bluez).
   For BT-2 it talks to BlueZ over the system D-Bus, and on modern BlueZ the **default**
   D-Bus policy already permits any local user to `send_destination="org.bluez"` (group-
@@ -478,11 +478,11 @@ u renogy-aprs      - "Renogy APRS reporter"
   collector doesn't do). So no `bluetooth` group, no custom D-Bus policy, no `Depends:
   bluez`. **Verify on the Pi:** if a locked-down BlueZ build returns D-Bus
   `AccessDenied`, the minimal fallback is a self-contained policy granting
-  `renogy-collector` access to `org.bluez` (still no package dep / no group).
+  `renogymon-collector` access to `org.bluez` (still no package dep / no group).
 
 ## Configuration
 
-The **Pi needs no config file** — `renogy-archiver export` uses defaults (or flags in
+The **Pi needs no config file** — `renogymon-archiver export` uses defaults (or flags in
 the unit). All transfer configuration lives on the **archive host** (see the puller
 package below).
 
@@ -494,16 +494,16 @@ Pi holds only the matching **public** key, restricted to rrsync on the staging d
 1. **Generate the keypair on the archive host:**
 
 ```sh
-ssh-keygen -t ed25519 -f /var/lib/renogy-archiver-puller/id_ed25519 -N "" \
-  -C "renogy-archiver-puller"
+ssh-keygen -t ed25519 -f /var/lib/renogymon-archiver-puller/id_ed25519 -N "" \
+  -C "renogymon-archiver-puller"
 ```
 
-2. **Install the public key on the Pi**, in `renogy-archiver`'s
-   `~/.ssh/authorized_keys` (i.e. `/var/lib/renogy-archiver/.ssh/authorized_keys`),
+2. **Install the public key on the Pi**, in `renogymon-archiver`'s
+   `~/.ssh/authorized_keys` (i.e. `/var/lib/renogymon-archiver/.ssh/authorized_keys`),
    locked to rrsync scoped to the staging dir:
 
 ```
-command="rrsync /var/lib/renogy-archiver/staging",no-pty,no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA... renogy-archiver-puller
+command="rrsync /var/lib/renogymon-archiver/staging",no-pty,no-agent-forwarding,no-port-forwarding,no-X11-forwarding ssh-ed25519 AAAA... renogymon-archiver-puller
 ```
 
 `rrsync` (ships with rsync) confines the connection to that one directory and rejects
@@ -521,7 +521,7 @@ only after the full history is archived and verified.
 **Cutover order — never lower retention first:**
 
 1. Leave VM retention at its current (large/default) value.
-2. Run `renogy-archiver export` — backfills the entire VM history into staging
+2. Run `renogymon-archiver export` — backfills the entire VM history into staging
    (one Parquet file per day, earliest day → yesterday).
 3. Stand up the puller; pull everything to the archive host.
 4. **Verify** the archive host holds a complete, contiguous set of daily files
@@ -537,7 +537,7 @@ only after the full history is archived and verified.
 **Steady-state guard:** once the 12-month window is active, data older than 12 months
 that was never exported is unrecoverable. The daily export keeps `last_exported_day`
 within ~1 day of now, far inside the window — but if export breaks and goes unnoticed
-for >12 months, days would age out before archiving. Monitor `renogy-archiver status`
+for >12 months, days would age out before archiving. Monitor `renogymon-archiver status`
 (or alert on `last_exported_day` falling behind) so a stalled export is caught long
 before the 12-month horizon.
 
@@ -557,7 +557,7 @@ verified. The only practical limit is **Pi disk space**:
   freed (by pulling). VM still has the data the whole time.
 
 So for the big-initial-load case the rule is simply: keep VM retention full, drain the
-backlog to the archive host (chunking if disk is tight), `renogy-archiver-puller status`
+backlog to the archive host (chunking if disk is tight), `renogymon-archiver-puller status`
 to confirm no gaps, *then* reduce retention.
 
 ## Analysis (Ubuntu Host)

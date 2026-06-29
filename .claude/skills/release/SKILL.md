@@ -1,10 +1,10 @@
 ---
 name: release
-description: Cut a renogy-rs release - bump the single workspace version, run the quality gates, commit, and tag. Use when the user wants to release, cut a version, or tag a new version. Pushing the tag (done by the user) triggers CI to build the .debs and create the GitHub Release.
+description: Cut a renogymon release - bump the single workspace version, run the quality gates, commit, and tag. Use when the user wants to release, cut a version, or tag a new version. Pushing the tag (done by the user) triggers CI to build the .debs and create the GitHub Release.
 allowed-tools: Bash(git status), Bash(git branch*), Bash(git rev-parse*), Bash(git log*), Bash(git fetch*), Bash(git add*), Bash(git commit*), Bash(git tag*), Bash(cargo*)
 ---
 
-# Release renogy-rs
+# Release renogymon
 
 All shipped tools share one workspace version (`[workspace.package].version` in the
 root `Cargo.toml`); every crate inherits it via `version.workspace = true`. A release
@@ -35,8 +35,8 @@ Run, and stop on the first failure:
 cargo +nightly fmt --check
 cargo clippy --workspace --all-targets
 cargo test --workspace
-cargo test -p renogy-archiver --test system -- --ignored
-cargo test -p renogy-archiver-puller --test pull -- --ignored
+cargo test -p renogymon-archiver --test system -- --ignored
+cargo test -p renogymon-archiver-puller --test pull -- --ignored
 ```
 
 The last two are the gated system tests CI also runs.
@@ -53,7 +53,7 @@ member crate's version.
 cargo check --workspace
 ```
 
-Confirm `Cargo.lock` now shows the new version for all renogy crates.
+Confirm `Cargo.lock` now shows the new version for all renogymon crates.
 
 ## Step 4 -- commit
 

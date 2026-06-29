@@ -1,24 +1,24 @@
 use clap::Parser;
 use clap::Subcommand;
 use prometheus_client::registry::Registry;
-use renogy_rs::any_transport::AnyTransport;
-use renogy_rs::any_transport::BT2_SCAN_RANGE;
-use renogy_rs::any_transport::SERIAL_SCAN_RANGE;
-use renogy_rs::bt2::Bt2Transport;
-use renogy_rs::bt2::discover_bt2_devices;
-use renogy_rs::collector::buffer::SampleBuffer;
-use renogy_rs::collector::metrics::PrometheusMetrics;
-use renogy_rs::collector::server::MetricsServer;
-use renogy_rs::collector::writer::VmWriter;
-use renogy_rs::serial::SerialTransport;
-use renogy_rs::util::parse_address;
+use renogy::any_transport::AnyTransport;
+use renogy::any_transport::BT2_SCAN_RANGE;
+use renogy::any_transport::SERIAL_SCAN_RANGE;
+use renogy::bt2::Bt2Transport;
+use renogy::bt2::discover_bt2_devices;
+use renogy::collector::buffer::SampleBuffer;
+use renogy::collector::metrics::PrometheusMetrics;
+use renogy::collector::server::MetricsServer;
+use renogy::collector::writer::VmWriter;
+use renogy::serial::SerialTransport;
+use renogy::util::parse_address;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "renogy-bms-collector")]
+#[command(name = "renogymon-bms-collector")]
 #[command(about = "Collect Renogy BMS metrics and export to VictoriaMetrics")]
 struct Args {
     #[command(subcommand)]

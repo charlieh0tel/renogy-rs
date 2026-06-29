@@ -28,9 +28,9 @@ const DEFAULT_BAUD_RATE: u32 = 9600;
 /// # Example
 ///
 /// ```ignore
-/// use renogy_rs::registers::Register;
-/// use renogy_rs::serial::SerialTransport;
-/// use renogy_rs::transport::Transport;
+/// use renogy::registers::Register;
+/// use renogy::serial::SerialTransport;
+/// use renogy::transport::Transport;
 ///
 /// let mut transport = SerialTransport::new("/dev/ttyUSB0", 9600, 0x01).await?;
 ///

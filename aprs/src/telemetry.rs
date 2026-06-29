@@ -1,6 +1,6 @@
 //! Pure APRS telemetry formatting (data packet + definition messages).
 
-use renogy_rs::system_summary::SystemSummary;
+use renogy::system_summary::SystemSummary;
 
 /// Free-text project title shown on telemetry plots (the BITS field), suffixed
 /// with the project URL so listeners can find the source.
@@ -66,9 +66,9 @@ mod tests {
     use super::definition_packets;
     use super::format_telemetry_packet_seq;
     use chrono::Utc;
-    use renogy_rs::alarm::Status1;
-    use renogy_rs::alarm::Status2;
-    use renogy_rs::system_summary::SystemSummary;
+    use renogy::alarm::Status1;
+    use renogy::alarm::Status2;
+    use renogy::system_summary::SystemSummary;
 
     fn summary() -> SystemSummary {
         SystemSummary {
